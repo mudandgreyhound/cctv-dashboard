@@ -1,0 +1,431 @@
+<!doctype html>
+<html lang="th" data-t="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CCTV Monitor — CMC Group</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafafa;--bg2:#fff;--bg3:#f2f2f0;--bg4:#e8e8e5;
+  --fg:#111;--fg2:#444;--fg3:#888;--fg4:#aaa;
+  --border:#e5e5e3;--border2:#d0d0cd;--card:#fff;
+  --online:#16a34a;--warning:#f59e0b;--offline:#dc2626;--blue:#2563eb;
+  --r:14px;--r2:10px;--ease:cubic-bezier(.22,.61,.36,1);
+  --sans:'Prompt',sans-serif;--shadow:0 1px 3px rgba(0,0,0,.06),0 6px 24px rgba(0,0,0,.04);
+}
+[data-t="dark"]{
+  --bg:#0c0c0c;--bg2:#161616;--bg3:#1c1c1a;--bg4:#262624;
+  --fg:#eee;--fg2:#bbb;--fg3:#777;--fg4:#555;
+  --border:#222;--border2:#333;--card:#161616;
+  --shadow:0 1px 3px rgba(0,0,0,.4),0 6px 24px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--fg);font-weight:400;
+  -webkit-font-smoothing:antialiased;transition:background .3s var(--ease),color .3s var(--ease)}
+button{font-family:var(--sans);cursor:pointer;border:none;background:none;color:inherit}
+button:active{transform:scale(.95)}
+.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.dot.online{background:var(--online);box-shadow:0 0 0 3px color-mix(in srgb,var(--online) 25%,transparent)}
+.dot.warning{background:var(--warning);box-shadow:0 0 0 3px color-mix(in srgb,var(--warning) 25%,transparent)}
+.dot.offline{background:var(--offline);box-shadow:0 0 0 3px color-mix(in srgb,var(--offline) 25%,transparent)}
+
+/* ---------- topbar ---------- */
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;
+  padding:14px 18px;background:color-mix(in srgb,var(--bg) 80%,transparent);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:16px;flex:none}
+.brand .logo{width:30px;height:30px;border-radius:9px;background:var(--fg);color:var(--bg);
+  display:grid;place-items:center;font-size:15px}
+.search{flex:1;min-width:140px;display:flex;align-items:center;gap:8px;background:var(--bg2);
+  border:1.5px solid var(--border);border-radius:50px;padding:8px 14px;transition:border .2s}
+.search:focus-within{border-color:var(--fg3)}
+.search input{border:none;background:none;outline:none;color:var(--fg);font-size:14px;width:100%}
+.search input::placeholder{color:var(--fg4)}
+.sumchips{display:flex;gap:6px;flex:none}
+.chip{display:flex;align-items:center;gap:6px;padding:7px 12px;border-radius:50px;
+  background:var(--bg2);border:1px solid var(--border);font-size:13px;font-weight:500}
+.iconbtn{width:38px;height:38px;border-radius:50px;background:var(--bg2);border:1px solid var(--border);
+  display:grid;place-items:center;font-size:15px;transition:background .2s}
+.iconbtn:hover{background:var(--bg3)}
+.iconbtn.spin svg{animation:spin .7s var(--ease)}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.wrap{max-width:1240px;margin:0 auto;padding:18px}
+
+/* ---------- stat cards ---------- */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  padding:16px 18px;box-shadow:var(--shadow)}
+.stat .lbl{font-size:12px;color:var(--fg3);font-weight:500;letter-spacing:.2px}
+.stat .val{font-size:30px;font-weight:600;margin-top:6px;line-height:1;display:flex;align-items:baseline;gap:8px}
+.stat .val small{font-size:14px;color:var(--fg3);font-weight:400}
+.stat.acc-online .val{color:var(--online)} .stat.acc-offline .val{color:var(--offline)}
+
+/* ---------- filter tabs ---------- */
+.tabs{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;padding:8px 16px;border-radius:50px;background:var(--bg2);border:1px solid var(--border);
+  font-size:13px;font-weight:500;color:var(--fg2);transition:all .2s var(--ease);scroll-snap-align:start}
+.tab.active{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+
+/* ---------- grid ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.bcard{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
+  overflow:hidden;box-shadow:var(--shadow);transition:transform .2s var(--ease),box-shadow .2s var(--ease);cursor:pointer}
+.bcard:hover{transform:translateY(-3px);box-shadow:0 8px 30px rgba(0,0,0,.10)}
+[data-t="dark"] .bcard:hover{box-shadow:0 8px 30px rgba(0,0,0,.5)}
+
+/* feed = ภาพกล้องจำลอง */
+.feed{position:relative;aspect-ratio:16/10;overflow:hidden;background:#0a0a0a}
+.feed .scene{position:absolute;inset:0;background:
+  repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 2px,transparent 2px 4px),
+  radial-gradient(120% 90% at 30% 20%,var(--h1),transparent 60%),
+  radial-gradient(120% 90% at 80% 90%,var(--h2),transparent 65%),#0c0e12}
+.feed.blur .scene{filter:blur(4px) brightness(.7)}
+.feed.down{background:repeating-linear-gradient(45deg,#1a1a1a 0 14px,#111 14px 28px)}
+.feed .ov{position:absolute;inset:0;padding:8px 10px;display:flex;flex-direction:column;
+  justify-content:space-between;font-size:11px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+.feed .ovtop{display:flex;justify-content:space-between;align-items:center}
+.rec{display:flex;align-items:center;gap:5px;font-weight:600;letter-spacing:.5px}
+.rec b{width:7px;height:7px;border-radius:50%;background:#ff3b3b;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.25}}
+.ts{font-variant-numeric:tabular-nums;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:5px}
+.feed .cam{align-self:flex-start;background:rgba(0,0,0,.45);padding:2px 7px;border-radius:5px;font-weight:500}
+.nosignal{position:absolute;inset:0;display:grid;place-items:center;color:#777;
+  font-weight:600;font-size:13px;letter-spacing:1px;gap:6px;flex-direction:column;text-align:center}
+.warntag{position:absolute;top:8px;left:8px;background:var(--warning);color:#111;font-weight:600;
+  font-size:10px;padding:3px 8px;border-radius:50px}
+
+.binfo{padding:12px 14px}
+.brow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.bname{display:flex;align-items:center;gap:8px;min-width:0}
+.bname .nm{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bcode{font-size:11px;color:var(--fg3);font-weight:500}
+.ip{font-size:12px;color:var(--fg3);font-variant-numeric:tabular-nums;margin-top:2px}
+.badges{display:flex;gap:6px;margin-top:10px;align-items:center;flex-wrap:wrap}
+.badge{font-size:11px;font-weight:500;padding:4px 9px;border-radius:50px;border:1px solid var(--border);
+  display:flex;align-items:center;gap:5px;background:var(--bg3)}
+.badge.ok{color:var(--online)} .badge.warn{color:var(--warning)} .badge.bad{color:var(--offline)}
+.lat{margin-left:auto;font-size:11px;color:var(--fg3);font-variant-numeric:tabular-nums}
+.spark{margin-top:11px;display:flex;align-items:center;gap:8px}
+.spark svg{flex:1;height:26px}
+.spark .pct{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ---------- lightbox / sheet ---------- */
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .25s}
+.overlay.show{display:flex;opacity:1}
+.sheet{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);width:100%;
+  max-width:620px;max-height:92vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.35);
+  transform:translateY(16px);transition:transform .25s var(--ease)}
+.overlay.show .sheet{transform:none}
+.shead{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;
+  border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg2);z-index:2}
+.shead .t{font-weight:600;font-size:16px;display:flex;align-items:center;gap:9px}
+.sbody{padding:18px}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.dcell{background:var(--bg3);border-radius:var(--r2);padding:11px 13px}
+.dcell .k{font-size:11px;color:var(--fg3);font-weight:500}
+.dcell .v{font-size:14px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
+.sect{font-size:12px;color:var(--fg3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin:18px 0 10px}
+.log{display:flex;flex-direction:column;gap:0}
+.logrow{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--border);font-size:13px}
+.logrow:last-child{border:none}
+.logrow .lt{color:var(--fg3);font-variant-numeric:tabular-nums;flex:none;width:62px}
+.logrow .lm{color:var(--fg2);flex:1}
+.bar{display:flex;gap:3px;align-items:flex-end;height:54px;margin-top:4px}
+.bar i{flex:1;border-radius:3px 3px 0 0;background:var(--online);min-height:3px;transition:height .4s var(--ease)}
+.bar i.w{background:var(--warning)} .bar i.d{background:var(--offline)} .bar i.n{background:var(--bg4)}
+.axis{display:flex;justify-content:space-between;font-size:10px;color:var(--fg4);margin-top:5px}
+
+/* ---------- toast ---------- */
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-80px);z-index:99;
+  background:var(--fg);color:var(--bg);padding:11px 20px;border-radius:50px;font-size:13px;font-weight:500;
+  box-shadow:0 8px 30px rgba(0,0,0,.25);transition:transform .35s var(--ease);display:flex;align-items:center;gap:8px}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+.foot{text-align:center;color:var(--fg4);font-size:12px;padding:24px 0 32px}
+
+@media(max-width:680px){
+  .stats{grid-template-columns:1fr 1fr}
+  .topbar{gap:8px;padding:12px} .sumchips{order:3;width:100%;justify-content:space-between}
+  .chip{flex:1;justify-content:center}
+  .grid{grid-template-columns:1fr}
+  .overlay{align-items:flex-end;padding:0}
+  .sheet{max-width:none;border-radius:18px 18px 0 0;max-height:90vh}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="logo">🎥</span><span data-i="title">CCTV Monitor</span></div>
+  <label class="search">
+    <span style="color:var(--fg4)">🔍</span>
+    <input id="q" type="text" oninput="render()" data-ph="ค้นหาสาขา / IP...">
+  </label>
+  <div class="sumchips" id="sum"></div>
+  <button class="iconbtn" id="refresh" title="Refresh" onclick="refresh()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>
+  </button>
+  <button class="iconbtn" id="lang" onclick="toggleLang()">TH</button>
+  <button class="iconbtn" id="theme" onclick="toggleTheme()">🌙</button>
+</header>
+
+<main class="wrap">
+  <section class="stats" id="stats"></section>
+  <div class="tabs" id="tabs"></div>
+  <section class="grid" id="grid"></section>
+  <div class="foot">
+    <span data-i="lastcheck">ตรวจล่าสุด</span>: <span id="lastts">—</span> ·
+    NVR DS-7104NI-Q1/4P/M · Camera DS-2CV2Q21FD-IW · <span data-i="mock">ข้อมูลจำลอง (Mock)</span>
+  </div>
+</main>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" id="sheet"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIG — สลับเป็นต่อ FastAPI จริงได้ที่นี่
+   ตั้ง USE_MOCK=false แล้วเปิด API_BASE/API_KEY ให้ตรงกับ cctv_api.py
+   ============================================================ */
+const CONFIG = {
+  USE_MOCK: true,
+  API_BASE: 'https://repair.mobile1234.site',   // FastAPI bridge เดิม
+  API_KEY:  'repair123',
+  REFRESH_MS: 30000
+};
+
+/* ---------- i18n ---------- */
+const I = {
+  th:{title:'CCTV Monitor',online:'ออนไลน์',offline:'ออฟไลน์',uptime:'Uptime เฉลี่ย',lastcheck:'ตรวจล่าสุด',
+      all:'ทั้งหมด',imgbad:'ภาพผิดปกติ',nvr:'NVR',cam:'กล้อง',lat:'หน่วง',view:'ดูภาพ',recent:'ประวัติการตรวจ 24 ชม.',
+      nosignal:'ไม่มีสัญญาณ',blur:'ภาพไม่ชัด',mock:'ข้อมูลจำลอง (Mock)',ip:'IP',model:'รุ่น',status:'สถานะ',
+      ph:'ค้นหาสาขา / IP...',uptimechart:'Uptime ราย ชม.',refreshed:'อัปเดตสถานะแล้ว'},
+  en:{title:'CCTV Monitor',online:'Online',offline:'Offline',uptime:'Avg Uptime',lastcheck:'Last check',
+      all:'All',imgbad:'Image issue',nvr:'NVR',cam:'Camera',lat:'Latency',view:'View',recent:'Last 24h checks',
+      nosignal:'NO SIGNAL',blur:'BLURRY',mock:'Mock data',ip:'IP',model:'Model',status:'Status',
+      ph:'Search branch / IP...',uptimechart:'Hourly uptime',refreshed:'Status updated'}
+};
+let lang='th', theme='light';
+const t = k => I[lang][k];
+
+/* ---------- ข้อมูลสาขาจริง 9 สาขา ---------- */
+const RAW = [
+  ['0004','DSB - MBK 2nd Floor','172.23.65.112'],
+  ['0014','DHS - Diana Dept Store Hadyai','172.23.66.176'],
+  ['0017','CSC - Seacon Square','172.23.67.16'],
+  ['0018','DTA - Amporn Ayudhaya','172.23.67.48'],
+  ['0019','CRD - Fashion Island','172.23.67.80'],
+  ['0020','DCS - Saveland Bangsan','172.23.67.112'],
+  ['0023','DXLB - Lotus Konkaen','172.23.67.208'],
+  ['0024','CSL - Lotus Srinakarin','172.23.68.240'],
+  ['0027','DYL3 - Lotus Pattaya #3','172.23.68.80'],
+];
+const HUES = ['#1b3a5c','#3a2c1b','#1b3a2c','#2c1b3a','#3a1b2c','#1b2c3a','#2c3a1b','#3a3320','#202a3a'];
+
+/* ---------- mock generator ---------- */
+const rnd=(a,b)=>Math.round(a+Math.random()*(b-a));
+function genMock(){
+  const now=new Date();
+  const branches=RAW.map(([code,name,ip],i)=>{
+    // กำหนดเคสให้เห็นครบ: 0014 offline, 0017 ภาพไม่ชัด, ที่เหลือ online
+    let nvr,cam;
+    if(code==='0014'){nvr={status:'offline',latency_ms:null,error:'host unreachable'};cam={status:'offline'};}
+    else if(code==='0017'){nvr={status:'online',latency_ms:rnd(15,40)};cam={status:'warning',latency_ms:rnd(20,50),error:'ภาพไม่ชัด'};}
+    else {nvr={status:'online',latency_ms:rnd(8,45)};cam={status:'online',latency_ms:rnd(12,55)};}
+    const samples=Array.from({length:24},()=>{
+      if(code==='0014')return rnd(0,45);
+      if(code==='0017')return rnd(70,98);
+      return Math.random()<.08?rnd(60,90):rnd(96,100);
+    });
+    const up=Math.round(samples.reduce((a,b)=>a+b,0)/samples.length*10)/10;
+    const status=[nvr.status,cam.status].includes('offline')?'offline'
+                :[nvr.status,cam.status].includes('warning')?'warning':'online';
+    return {code,name,ip,nvr,cam,samples,uptime_24h:up,status,hue:HUES[i],checked_at:now};
+  });
+  return {checked_at:now,branches};
+}
+
+/* ---------- fetch (mock หรือ FastAPI จริง) ---------- */
+async function loadData(){
+  if(CONFIG.USE_MOCK) return genMock();
+  const r=await fetch(`${CONFIG.API_BASE}/api/cctv/status`,{headers:{'X-API-Key':CONFIG.API_KEY}});
+  const d=await r.json();
+  // map response -> โครงเดียวกับ mock
+  d.branches.forEach((b,i)=>{
+    b.hue=HUES[i%HUES.length];
+    b.nvr=b.nvr||{status:'offline'}; b.cam=b.camera||{status:'offline'};
+    b.checked_at=new Date(b.checked_at);
+  });
+  return d;
+}
+
+let DATA=null, filter='all';
+
+/* ---------- render ---------- */
+function statusOf(d){return d?d.status:'offline';}
+function fmtTs(dt){return dt?dt.toLocaleTimeString(lang==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';}
+
+function sparkSVG(samples){
+  const w=100,h=26,n=samples.length;
+  const pts=samples.map((v,i)=>`${(i/(n-1))*w},${h-(v/100)*(h-3)-1}`).join(' ');
+  const last=samples[samples.length-1];
+  const col=last>=95?'var(--online)':last>=60?'var(--warning)':'var(--offline)';
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
+function feedHTML(b){
+  if(b.status==='offline')
+    return `<div class="feed down"><div class="nosignal">⚠<span>${t('nosignal')}</span></div></div>`;
+  const blur=b.cam&&b.cam.status==='warning';
+  return `<div class="feed ${blur?'blur':''}" style="--h1:${b.hue};--h2:#000">
+    <div class="scene"></div>
+    ${blur?`<span class="warntag">${t('blur')}</span>`:''}
+    <div class="ov">
+      <div class="ovtop"><span class="rec"><b></b>REC</span><span class="ts">${fmtTs(DATA.checked_at)}</span></div>
+      <span class="cam">${b.code} · CH1</span>
+    </div></div>`;
+}
+
+function badge(label,st){
+  const map={online:['ok','✓'],warning:['warn','⚠'],offline:['bad','✕']};
+  const [c,ic]=map[st]||map.offline;
+  return `<span class="badge ${c}"><span class="dot ${st}" style="width:7px;height:7px;box-shadow:none"></span>${label} ${ic}</span>`;
+}
+
+function card(b){
+  const lat=b.cam&&b.cam.latency_ms!=null?b.cam.latency_ms+'ms':'—';
+  return `<article class="bcard" onclick='openSheet("${b.code}")'>
+    ${feedHTML(b)}
+    <div class="binfo">
+      <div class="brow"><div class="bname"><span class="dot ${b.status}"></span>
+        <span class="nm">${b.name}</span></div></div>
+      <div class="bcode">#${b.code}</div>
+      <div class="ip">${b.ip}</div>
+      <div class="badges">
+        ${badge(t('nvr'),statusOf(b.nvr))}
+        ${badge(t('cam'),statusOf(b.cam))}
+        <span class="lat">${t('lat')} ${lat}</span>
+      </div>
+      <div class="spark">${sparkSVG(b.samples)}<span class="pct" style="color:${b.uptime_24h>=95?'var(--online)':b.uptime_24h>=60?'var(--warning)':'var(--offline)'}">${b.uptime_24h}%</span></div>
+    </div>
+  </article>`;
+}
+
+function render(){
+  if(!DATA)return;
+  const q=(document.getElementById('q').value||'').toLowerCase();
+  let list=DATA.branches.filter(b=>
+    b.name.toLowerCase().includes(q)||b.ip.includes(q)||b.code.includes(q));
+  if(filter==='online')list=list.filter(b=>b.status==='online');
+  else if(filter==='offline')list=list.filter(b=>b.status==='offline');
+  else if(filter==='imgbad')list=list.filter(b=>b.cam&&b.cam.status==='warning');
+
+  document.getElementById('grid').innerHTML=list.map(card).join('')
+    ||`<div style="grid-column:1/-1;text-align:center;color:var(--fg4);padding:50px">— ไม่พบสาขา —</div>`;
+
+  // stats
+  const on=DATA.branches.filter(b=>b.status==='online').length;
+  const off=DATA.branches.filter(b=>b.status==='offline').length;
+  const up=Math.round(DATA.branches.reduce((a,b)=>a+b.uptime_24h,0)/DATA.branches.length*10)/10;
+  document.getElementById('stats').innerHTML=`
+    <div class="stat acc-online"><div class="lbl">${t('online')}</div><div class="val">${on}<small>/ ${DATA.branches.length}</small></div></div>
+    <div class="stat acc-offline"><div class="lbl">${t('offline')}</div><div class="val">${off}</div></div>
+    <div class="stat"><div class="lbl">${t('uptime')}</div><div class="val">${up}<small>%</small></div></div>
+    <div class="stat"><div class="lbl">${t('lastcheck')}</div><div class="val" style="font-size:22px">${fmtTs(DATA.checked_at)}</div></div>`;
+
+  const warn=DATA.branches.filter(b=>b.status==='warning').length;
+  document.getElementById('sum').innerHTML=
+    `<span class="chip"><span class="dot online"></span>${on}</span>
+     <span class="chip"><span class="dot warning"></span>${warn}</span>
+     <span class="chip"><span class="dot offline"></span>${off}</span>`;
+  document.getElementById('lastts').textContent=fmtTs(DATA.checked_at);
+}
+
+function renderTabs(){
+  const defs=[['all',t('all')],['online',t('online')],['offline',t('offline')],['imgbad',t('imgbad')]];
+  document.getElementById('tabs').innerHTML=defs.map(([k,l])=>
+    `<button class="tab ${filter===k?'active':''}" onclick="filter='${k}';renderTabs();render()">${l}</button>`).join('');
+}
+
+/* ---------- lightbox ---------- */
+function openSheet(code){
+  const b=DATA.branches.find(x=>x.code===code);
+  const log=genLog(b);
+  document.getElementById('sheet').innerHTML=`
+    <div class="shead"><div class="t"><span class="dot ${b.status}"></span>${b.name}</div>
+      <button class="iconbtn" onclick="closeSheet()" style="border:none;background:var(--bg3)">✕</button></div>
+    <div class="sbody">
+      ${feedHTML(b)}
+      <div class="dgrid">
+        <div class="dcell"><div class="k">${t('ip')}</div><div class="v">${b.ip}</div></div>
+        <div class="dcell"><div class="k">${t('status')}</div><div class="v" style="color:var(--${b.status})">${t(b.status==='warning'?'imgbad':b.status)}</div></div>
+        <div class="dcell"><div class="k">${t('nvr')} · DS-7104NI-Q1</div><div class="v">${badge('',statusOf(b.nvr))}</div></div>
+        <div class="dcell"><div class="k">${t('cam')} · DS-2CV2Q21FD-IW</div><div class="v">${badge('',statusOf(b.cam))}</div></div>
+        <div class="dcell"><div class="k">${t('lat')}</div><div class="v">${b.nvr&&b.nvr.latency_ms!=null?b.nvr.latency_ms+' ms':'—'}</div></div>
+        <div class="dcell"><div class="k">${t('uptime')} 24h</div><div class="v">${b.uptime_24h}%</div></div>
+      </div>
+      <div class="sect">${t('uptimechart')}</div>
+      <div class="bar">${b.samples.map(v=>{
+        const cls=v>=95?'':v>=60?'w':v>=1?'d':'n';
+        return `<i class="${cls}" style="height:${Math.max(v,3)}%" title="${v}%"></i>`;}).join('')}</div>
+      <div class="axis"><span>-24h</span><span>-12h</span><span>${t('lastcheck')}</span></div>
+      <div class="sect">${t('recent')}</div>
+      <div class="log">${log.map(l=>
+        `<div class="logrow"><span class="lt">${l.t}</span><span class="dot ${l.s}"></span><span class="lm">${l.m}</span></div>`).join('')}</div>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+function closeSheet(){document.getElementById('overlay').classList.remove('show');}
+
+function genLog(b){
+  const out=[],now=new Date();
+  for(let i=0;i<7;i++){
+    const dt=new Date(now-i*7*60000);
+    const tt=dt.toLocaleTimeString(lang==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit'});
+    let s=b.status,m;
+    if(b.status==='offline')m=lang==='th'?'NVR ไม่ตอบสนอง (timeout)':'NVR unreachable (timeout)';
+    else if(b.status==='warning'&&i<3)m=lang==='th'?'ภาพไม่ชัด — ตรวจเลนส์/โฟกัส':'Blurry image — check lens/focus';
+    else {s='online';m=lang==='th'?`ปกติ · capture สำเร็จ (${rnd(10,50)}ms)`:`OK · captured (${rnd(10,50)}ms)`;}
+    out.push({t:tt,s,m});
+  }
+  return out;
+}
+
+/* ---------- controls ---------- */
+function toggleTheme(){theme=theme==='light'?'dark':'light';
+  document.documentElement.setAttribute('data-t',theme);
+  document.getElementById('theme').textContent=theme==='light'?'🌙':'☀️';}
+function toggleLang(){lang=lang==='th'?'en':'th';
+  document.getElementById('lang').textContent=lang==='th'?'TH':'EN';
+  document.documentElement.lang=lang;
+  document.getElementById('q').placeholder=t('ph');
+  document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));
+  renderTabs();render();}
+function toast(msg){const el=document.getElementById('toast');el.innerHTML='✓ '+msg;
+  el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
+
+async function refresh(){
+  const btn=document.getElementById('refresh');btn.classList.add('spin');
+  DATA=await loadData();render();
+  setTimeout(()=>btn.classList.remove('spin'),700);
+  toast(t('refreshed'));
+}
+
+/* ---------- init ---------- */
+(async function init(){
+  document.getElementById('q').placeholder=I.th.ph;
+  DATA=await loadData();renderTabs();render();
+  setInterval(refresh,CONFIG.REFRESH_MS);   // auto-refresh
+})();
+</script>
+</body>
+</html>
