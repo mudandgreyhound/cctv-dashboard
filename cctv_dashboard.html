@@ -83,6 +83,8 @@ button:active{transform:scale(.95)}
   repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 2px,transparent 2px 4px),
   radial-gradient(120% 90% at 30% 20%,var(--h1),transparent 60%),
   radial-gradient(120% 90% at 80% 90%,var(--h2),transparent 65%),#0c0e12}
+.feed .snap{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.feed .snap.snaperr{display:none}
 .feed.blur .scene{filter:blur(4px) brightness(.7)}
 .feed.down{background:repeating-linear-gradient(45deg,#1a1a1a 0 14px,#111 14px 28px)}
 .feed .ov{position:absolute;inset:0;padding:8px 10px;display:flex;flex-direction:column;
@@ -195,8 +197,8 @@ button:active{transform:scale(.95)}
    ตั้ง USE_MOCK=false แล้วเปิด API_BASE/API_KEY ให้ตรงกับ cctv_api.py
    ============================================================ */
 const CONFIG = {
-  USE_MOCK: true,
-  API_BASE: 'https://repair.mobile1234.site',   // FastAPI bridge เดิม
+  USE_MOCK: false,                                 // true = ข้อมูลจำลอง / false = ต่อ API จริง
+  API_BASE: 'https://cctvchecker.mobile1234.site', // tunnel ของ FastAPI (serve.py :9008)
   API_KEY:  'repair123',
   REFRESH_MS: 30000
 };
@@ -282,13 +284,27 @@ function sparkSVG(samples){
   </svg>`;
 }
 
+function snapUrl(b){
+  const cam=b.cam||b.camera;
+  if(CONFIG.USE_MOCK||!cam||!cam.snapshot_url) return null;
+  // แนบ key ผ่าน query (img แนบ header ไม่ได้) + bust cache ตามรอบ refresh
+  const bust=DATA&&DATA.checked_at?DATA.checked_at.getTime():Date.now();
+  return CONFIG.API_BASE+cam.snapshot_url+'?key='+encodeURIComponent(CONFIG.API_KEY)+'&t='+bust;
+}
 function feedHTML(b){
   if(b.status==='offline')
     return `<div class="feed down"><div class="nosignal">⚠<span>${t('nosignal')}</span></div></div>`;
-  const blur=b.cam&&b.cam.status==='warning';
-  return `<div class="feed ${blur?'blur':''}" style="--h1:${b.hue};--h2:#000">
-    <div class="scene"></div>
-    ${blur?`<span class="warntag">${t('blur')}</span>`:''}
+  const warn=(b.cam||b.camera)&&(b.cam||b.camera).status==='warning';
+  const url=snapUrl(b);
+  const inner=url
+    ? `<img class="snap" src="${url}" loading="lazy" alt="${b.code}"
+         onerror="this.classList.add('snaperr')">`        // ภาพจริง
+    : `<div class="scene" style="--h1:${b.hue||'#1b2c3a'};--h2:#000"></div>`; // จำลอง/ยังไม่มีภาพ
+  // blur เฉพาะ mock; ภาพจริงไม่เบลอ (ให้คนตัดสินเอง) แต่ติดป้ายเตือน
+  const blurCls=(CONFIG.USE_MOCK&&warn)?'blur':'';
+  return `<div class="feed ${blurCls}">
+    ${inner}
+    ${warn?`<span class="warntag">${t('imgbad')}</span>`:''}
     <div class="ov">
       <div class="ovtop"><span class="rec"><b></b>REC</span><span class="ts">${fmtTs(DATA.checked_at)}</span></div>
       <span class="cam">${b.code} · CH1</span>
