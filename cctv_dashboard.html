@@ -85,6 +85,19 @@ button:active{transform:scale(.95)}
   radial-gradient(120% 90% at 80% 90%,var(--h2),transparent 65%),#0c0e12}
 .feed .snap{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 .feed .snap.snaperr{display:none}
+/* ---- multi-cam grid ---- */
+.feedgrid{position:relative;aspect-ratio:16/10;background:#0a0a0a;display:grid;gap:2px;overflow:hidden}
+.feedgrid.g1{grid-template-columns:1fr}
+.feedgrid.g2{grid-template-columns:1fr 1fr}
+.feedgrid.g4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.feedgrid .feed{aspect-ratio:auto;width:100%;height:100%}
+.feedgrid .chtag{position:absolute;left:5px;bottom:5px;display:flex;align-items:center;gap:4px;
+  background:rgba(0,0,0,.5);color:#fff;font-size:9px;font-weight:600;padding:2px 6px;border-radius:5px}
+.feedgrid .warndot{position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;
+  background:var(--warning);box-shadow:0 0 0 2px rgba(0,0,0,.3)}
+.feedgrid .brc{position:absolute;top:6px;left:6px;z-index:3;background:rgba(0,0,0,.5);color:#fff;
+  font-size:10px;font-weight:600;padding:2px 7px;border-radius:5px;pointer-events:none}
+.sbody .feedgrid{aspect-ratio:16/10;border-radius:var(--r2);margin-bottom:4px}
 .feed.blur .scene{filter:blur(4px) brightness(.7)}
 .feed.down{background:repeating-linear-gradient(45deg,#1a1a1a 0 14px,#111 14px 28px)}
 .feed .ov{position:absolute;inset:0;padding:8px 10px;display:flex;flex-direction:column;
@@ -305,31 +318,38 @@ function sparkSVG(samples){
   </svg>`;
 }
 
-function snapUrl(b){
-  const cam=b.cam||b.camera;
+function camList(b){ return (b.cameras&&b.cameras.length)?b.cameras:(b.cam?[b.cam]:[]); }
+
+function snapUrlCam(cam){
   if(CONFIG.USE_MOCK||!cam||!cam.snapshot_url) return null;
-  // แนบ token ผ่าน query (img แนบ header ไม่ได้) + bust cache ตามรอบ refresh
   const bust=DATA&&DATA.checked_at?DATA.checked_at.getTime():Date.now();
   return CONFIG.API_BASE+cam.snapshot_url+'?token='+encodeURIComponent(TOKEN)+'&t='+bust;
 }
-function feedHTML(b){
-  if(b.status==='offline')
-    return `<div class="feed down"><div class="nosignal">⚠<span>${t('nosignal')}</span></div></div>`;
-  const warn=(b.cam||b.camera)&&(b.cam||b.camera).status==='warning';
-  const url=snapUrl(b);
+
+function feedCell(cam,b,big){
+  const ch=cam.channel||1;
+  const url=snapUrlCam(cam);
+  const warn=cam.status==='warning', off=cam.status==='offline';
+  if(off) return `<div class="feed down"><div class="nosignal" style="font-size:11px">⚠</div>
+    <span class="chtag">CH${ch}</span></div>`;
   const inner=url
-    ? `<img class="snap" src="${url}" loading="lazy" alt="${b.code}"
-         onerror="this.classList.add('snaperr')">`        // ภาพจริง
-    : `<div class="scene" style="--h1:${b.hue||'#1b2c3a'};--h2:#000"></div>`; // จำลอง/ยังไม่มีภาพ
-  // blur เฉพาะ mock; ภาพจริงไม่เบลอ (ให้คนตัดสินเอง) แต่ติดป้ายเตือน
-  const blurCls=(CONFIG.USE_MOCK&&warn)?'blur':'';
-  return `<div class="feed ${blurCls}">
-    ${inner}
-    ${warn?`<span class="warntag">${t('imgbad')}</span>`:''}
-    <div class="ov">
-      <div class="ovtop"><span class="rec"><b></b>REC</span><span class="ts">${fmtTs(DATA.checked_at)}</span></div>
-      <span class="cam">${b.code} · CH1</span>
-    </div></div>`;
+    ? `<img class="snap" src="${url}" loading="lazy" alt="${b.code} ch${ch}" onerror="this.classList.add('snaperr')">`
+    : `<div class="scene" style="--h1:${b.hue||'#1b2c3a'};--h2:#000"></div>`;
+  return `<div class="feed">${inner}
+    ${warn?'<span class="warndot" title="ภาพผิดปกติ"></span>':''}
+    <span class="chtag"><span class="dot ${cam.status}" style="width:6px;height:6px;box-shadow:none"></span>CH${ch}</span>
+    ${big?`<div class="ov"><div class="ovtop"><span class="rec"><b></b>REC</span><span class="ts">${fmtTs(DATA.checked_at)}</span></div></div>`:''}
+  </div>`;
+}
+
+function feedHTML(b,big){
+  const cams=camList(b);
+  if(!cams.length || b.status==='offline' && !cams.some(c=>c.status!=='offline'))
+    return `<div class="feed down"><div class="nosignal">⚠<span>${t('nosignal')}</span></div></div>`;
+  const n=cams.length;
+  const cls=n<=1?'g1':n===2?'g2':'g4';     // 1 / 2 / 4-grid
+  return `<div class="feedgrid ${cls}">${cams.map(c=>feedCell(c,b,big&&n===1)).join('')}
+    <span class="brc">${b.code} · ${n} กล้อง</span></div>`;
 }
 
 function badge(label,st){
@@ -339,9 +359,13 @@ function badge(label,st){
 }
 
 function card(b){
-  const lat=b.cam&&b.cam.latency_ms!=null?b.cam.latency_ms+'ms':'—';
+  const lat=b.nvr&&b.nvr.latency_ms!=null?b.nvr.latency_ms+'ms':'—';
+  const cams=camList(b);
+  const onCnt=(b.cam_online!=null)?b.cam_online:cams.filter(c=>c.status==='online').length;
+  const total=(b.cam_count!=null)?b.cam_count:cams.length;
+  const camSt=total===0?'offline':onCnt===total?'online':onCnt>0?'warning':'warning';
   return `<article class="bcard" onclick='openSheet("${b.code}")'>
-    ${feedHTML(b)}
+    ${feedHTML(b,false)}
     <div class="binfo">
       <div class="brow"><div class="bname"><span class="dot ${b.status}"></span>
         <span class="nm">${b.name}</span></div></div>
@@ -349,7 +373,8 @@ function card(b){
       <div class="ip">${b.ip}</div>
       <div class="badges">
         ${badge(t('nvr'),statusOf(b.nvr))}
-        ${badge(t('cam'),statusOf(b.cam))}
+        <span class="badge ${camSt==='online'?'ok':camSt==='warning'?'warn':'bad'}">
+          <span class="dot ${camSt}" style="width:7px;height:7px;box-shadow:none"></span>${t('cam')} ${onCnt}/${total}</span>
         <span class="lat">${t('lat')} ${lat}</span>
       </div>
       <div class="spark">${sparkSVG(b.samples)}<span class="pct" style="color:${b.uptime_24h>=95?'var(--online)':b.uptime_24h>=60?'var(--warning)':'var(--offline)'}">${b.uptime_24h}%</span></div>
@@ -364,7 +389,7 @@ function render(){
     b.name.toLowerCase().includes(q)||b.ip.includes(q)||b.code.includes(q));
   if(filter==='online')list=list.filter(b=>b.status==='online');
   else if(filter==='offline')list=list.filter(b=>b.status==='offline');
-  else if(filter==='imgbad')list=list.filter(b=>b.cam&&b.cam.status==='warning');
+  else if(filter==='imgbad')list=list.filter(b=>camList(b).some(c=>c.status==='warning'));
 
   document.getElementById('grid').innerHTML=list.map(card).join('')
     ||`<div style="grid-column:1/-1;text-align:center;color:var(--fg4);padding:50px">— ไม่พบสาขา —</div>`;
@@ -397,21 +422,23 @@ function renderTabs(){
 function openSheet(code){
   const b=DATA.branches.find(x=>x.code===code);
   const log=genLog(b);
+  const cams=camList(b);
+  const onCnt=cams.filter(c=>c.status==='online').length;
   document.getElementById('sheet').innerHTML=`
     <div class="shead"><div class="t"><span class="dot ${b.status}"></span>${b.name}</div>
       <button class="iconbtn" onclick="closeSheet()" style="border:none;background:var(--bg3)">✕</button></div>
     <div class="sbody">
-      ${feedHTML(b)}
+      ${feedHTML(b,true)}
       <div class="dgrid">
         <div class="dcell"><div class="k">${t('ip')}</div><div class="v">${b.ip}</div></div>
         <div class="dcell"><div class="k">${t('status')}</div><div class="v" style="color:var(--${b.status})">${t(b.status==='warning'?'imgbad':b.status)}</div></div>
         <div class="dcell"><div class="k">${t('nvr')} · DS-7104NI-Q1</div><div class="v">${badge('',statusOf(b.nvr))}</div></div>
-        <div class="dcell"><div class="k">${t('cam')} · DS-2CV2Q21FD-IW</div><div class="v">${badge('',statusOf(b.cam))}</div></div>
+        <div class="dcell"><div class="k">${t('cam')} · DS-2CV2Q21FD-IW</div><div class="v">${onCnt}/${cams.length} ออนไลน์</div></div>
         <div class="dcell"><div class="k">${t('lat')}</div><div class="v">${b.nvr&&b.nvr.latency_ms!=null?b.nvr.latency_ms+' ms':'—'}</div></div>
         <div class="dcell"><div class="k">${t('uptime')} 24h</div><div class="v">${b.uptime_24h}%</div></div>
       </div>
       <div class="sect">${t('uptimechart')}</div>
-      <div class="bar">${b.samples.map(v=>{
+      <div class="bar">${b.samples.map(v=>{v=v==null?0:v;
         const cls=v>=95?'':v>=60?'w':v>=1?'d':'n';
         return `<i class="${cls}" style="height:${Math.max(v,3)}%" title="${v}%"></i>`;}).join('')}</div>
       <div class="axis"><span>-24h</span><span>-12h</span><span>${t('lastcheck')}</span></div>
