@@ -259,10 +259,12 @@ async function loadData(){
   if(CONFIG.USE_MOCK) return genMock();
   const r=await fetch(`${CONFIG.API_BASE}/api/cctv/status`,{headers:{'X-API-Key':CONFIG.API_KEY}});
   const d=await r.json();
+  d.checked_at=new Date(d.checked_at);          // ★ แปลงตัวบนสุดเป็น Date (กัน fmtTs พัง)
   // map response -> โครงเดียวกับ mock
   d.branches.forEach((b,i)=>{
     b.hue=HUES[i%HUES.length];
     b.nvr=b.nvr||{status:'offline'}; b.cam=b.camera||{status:'offline'};
+    b.samples=b.samples||[]; if(b.uptime_24h==null)b.uptime_24h=0;
     b.checked_at=new Date(b.checked_at);
   });
   return d;
@@ -272,11 +274,17 @@ let DATA=null, filter='all';
 
 /* ---------- render ---------- */
 function statusOf(d){return d?d.status:'offline';}
-function fmtTs(dt){return dt?dt.toLocaleTimeString(lang==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—';}
+function fmtTs(dt){
+  if(!dt) return '—';
+  if(!(dt instanceof Date)) dt=new Date(dt);     // กันกรณีเป็น string
+  if(isNaN(dt)) return '—';
+  return dt.toLocaleTimeString(lang==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
 
 function sparkSVG(samples){
+  samples=(samples&&samples.length?samples:[0]).map(v=>v==null?0:v);  // null -> 0
   const w=100,h=26,n=samples.length;
-  const pts=samples.map((v,i)=>`${(i/(n-1))*w},${h-(v/100)*(h-3)-1}`).join(' ');
+  const pts=samples.map((v,i)=>`${n>1?(i/(n-1))*w:0},${h-(v/100)*(h-3)-1}`).join(' ');
   const last=samples[samples.length-1];
   const col=last>=95?'var(--online)':last>=60?'var(--warning)':'var(--offline)';
   return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
@@ -439,6 +447,10 @@ async function refresh(){
 /* ---------- init ---------- */
 (async function init(){
   document.getElementById('q').placeholder=I.th.ph;
+  if(!CONFIG.USE_MOCK){
+    I.th.mock='ข้อมูลจริง (Live)'; I.en.mock='Live data';
+    document.querySelector('[data-i="mock"]').textContent=I.th.mock;
+  }
   DATA=await loadData();renderTabs();render();
   setInterval(refresh,CONFIG.REFRESH_MS);   // auto-refresh
 })();
