@@ -171,6 +171,12 @@ button:active{transform:scale(.95)}
   .overlay{align-items:flex-end;padding:0}
   .sheet{max-width:none;border-radius:18px 18px 0 0;max-height:90vh}
 }
+  .navbtn{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50px;
+  background:rgba(0,0,0,.5);color:#fff;font-size:22px;border:none;cursor:pointer;display:grid;place-items:center}
+.navbtn:hover{background:rgba(0,0,0,.75)} .nleft{left:8px} .nright{right:8px}
+.camdots{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:5px}
+.camdots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.4)}
+.camdots i.on{background:#fff}
 </style>
 </head>
 <body>
@@ -297,7 +303,8 @@ async function loadData(){
 }
 
 let DATA=null, filter='all';
-
+let sheetBranch=null, camIdx=0;
+  
 /* ---------- render ---------- */
 function statusOf(d){return d?d.status:'offline';}
 function fmtTs(dt){
@@ -428,7 +435,7 @@ function openSheet(code){
     <div class="shead"><div class="t"><span class="dot ${b.status}"></span>${b.name}</div>
       <button class="iconbtn" onclick="closeSheet()" style="border:none;background:var(--bg3)">✕</button></div>
     <div class="sbody">
-      ${feedHTML(b,true)}
+      <div id="camviewer"></div>
       <div class="dgrid">
         <div class="dcell"><div class="k">${t('ip')}</div><div class="v">${b.ip}</div></div>
         <div class="dcell"><div class="k">${t('status')}</div><div class="v" style="color:var(--${b.status})">${t(b.status==='warning'?'imgbad':b.status)}</div></div>
@@ -446,10 +453,32 @@ function openSheet(code){
       <div class="log">${log.map(l=>
         `<div class="logrow"><span class="lt">${l.t}</span><span class="dot ${l.s}"></span><span class="lm">${l.m}</span></div>`).join('')}</div>
     </div>`;
+  sheetBranch=b; camIdx=0; renderCam();
   document.getElementById('overlay').classList.add('show');
 }
 function closeSheet(){document.getElementById('overlay').classList.remove('show');}
-
+function renderCam(){
+  const b=sheetBranch, cams=camList(b);
+  if(!cams.length){document.getElementById('camviewer').innerHTML=
+    `<div class="feed down"><div class="nosignal">⚠ ไม่มีสัญญาณ</div></div>`;return;}
+  if(camIdx<0)camIdx=cams.length-1; if(camIdx>=cams.length)camIdx=0;
+  const c=cams[camIdx], url=snapUrlCam(c);
+  document.getElementById('camviewer').innerHTML=`
+    <div class="feed" style="aspect-ratio:16/10;border-radius:10px;overflow:hidden">
+      ${url?`<img class="snap" src="${url}" onerror="this.classList.add('snaperr')">`
+           :`<div class="scene" style="--h1:${b.hue||'#1b2c3a'};--h2:#000"></div>`}
+      <div class="ov"><div class="ovtop"><span class="rec"><b></b>REC</span>
+        <span class="ts">${fmtTs(DATA.checked_at)}</span></div>
+        <span class="cam"><span class="dot ${c.status}" style="width:6px;height:6px;box-shadow:none"></span> CH${c.channel||1}</span></div>
+      ${cams.length>1?`
+        <button onclick="event.stopPropagation();camStep(-1)" class="navbtn nleft">‹</button>
+        <button onclick="event.stopPropagation();camStep(1)" class="navbtn nright">›</button>
+        <div class="camdots">${cams.map((_,i)=>`<i class="${i===camIdx?'on':''}"></i>`).join('')}</div>`:''}
+    </div>
+    <div style="text-align:center;font-size:12px;color:var(--fg3);margin-top:8px">
+      กล้อง ${camIdx+1} / ${cams.length} · CH${c.channel||1}${c.status==='warning'?' · ⚠ ภาพผิดปกติ':''}</div>`;
+}
+function camStep(d){camIdx+=d;renderCam();}
 function genLog(b){
   const out=[],now=new Date();
   for(let i=0;i<7;i++){
