@@ -174,6 +174,9 @@ button:active{transform:scale(.95)}
   </button>
   <button class="iconbtn" id="lang" onclick="toggleLang()">TH</button>
   <button class="iconbtn" id="theme" onclick="toggleTheme()">🌙</button>
+  <button class="iconbtn" id="logout" title="ออกจากระบบ" onclick="logout()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+  </button>
 </header>
 
 <main class="wrap">
@@ -199,9 +202,18 @@ button:active{transform:scale(.95)}
 const CONFIG = {
   USE_MOCK: false,                                 // true = ข้อมูลจำลอง / false = ต่อ API จริง
   API_BASE: 'https://cctvchecker.mobile1234.site', // tunnel ของ FastAPI (serve.py :9008)
-  API_KEY:  'repair123',
+  LOGIN: 'index.html',                             // หน้า login (โฟลเดอร์เดียวกัน)
   REFRESH_MS: 30000
 };
+
+/* ---------- auth gate: ไม่มี token = เด้งไป login ---------- */
+let TOKEN = null;
+if(!CONFIG.USE_MOCK){
+  TOKEN = sessionStorage.getItem('cctv_token');
+  if(!TOKEN){ location.replace(CONFIG.LOGIN); }
+}
+function logout(){ sessionStorage.removeItem('cctv_token'); sessionStorage.removeItem('cctv_user');
+  location.replace(CONFIG.LOGIN); }
 
 /* ---------- i18n ---------- */
 const I = {
@@ -257,7 +269,8 @@ function genMock(){
 /* ---------- fetch (mock หรือ FastAPI จริง) ---------- */
 async function loadData(){
   if(CONFIG.USE_MOCK) return genMock();
-  const r=await fetch(`${CONFIG.API_BASE}/api/cctv/status`,{headers:{'X-API-Key':CONFIG.API_KEY}});
+  const r=await fetch(`${CONFIG.API_BASE}/api/cctv/status`,{headers:{'X-Token':TOKEN}});
+  if(r.status===401){ logout(); return {checked_at:new Date(),branches:[]}; }  // token หมดอายุ
   const d=await r.json();
   d.checked_at=new Date(d.checked_at);          // ★ แปลงตัวบนสุดเป็น Date (กัน fmtTs พัง)
   // map response -> โครงเดียวกับ mock
@@ -295,9 +308,9 @@ function sparkSVG(samples){
 function snapUrl(b){
   const cam=b.cam||b.camera;
   if(CONFIG.USE_MOCK||!cam||!cam.snapshot_url) return null;
-  // แนบ key ผ่าน query (img แนบ header ไม่ได้) + bust cache ตามรอบ refresh
+  // แนบ token ผ่าน query (img แนบ header ไม่ได้) + bust cache ตามรอบ refresh
   const bust=DATA&&DATA.checked_at?DATA.checked_at.getTime():Date.now();
-  return CONFIG.API_BASE+cam.snapshot_url+'?key='+encodeURIComponent(CONFIG.API_KEY)+'&t='+bust;
+  return CONFIG.API_BASE+cam.snapshot_url+'?token='+encodeURIComponent(TOKEN)+'&t='+bust;
 }
 function feedHTML(b){
   if(b.status==='offline')
