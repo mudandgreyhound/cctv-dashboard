@@ -437,7 +437,7 @@ function openSheet(code){
     <div class="sbody">
       <div id="camviewer"></div>
       <div class="dgrid">
-        <div class="dcell"><div class="k">${t('ip')}</div><div class="v">${b.ip}</div></div>
+        <div class="dcell"><div class="k">${t('ip')}</div><div class="v"><a href="http://${b.ip}" target="_blank" rel="noopener" class="iplink">${b.ip} ↗</a></div></div>
         <div class="dcell"><div class="k">${t('status')}</div><div class="v" style="color:var(--${b.status})">${t(b.status==='warning'?'imgbad':b.status)}</div></div>
         <div class="dcell"><div class="k">${t('nvr')} · DS-7104NI-Q1</div><div class="v">${badge('',statusOf(b.nvr))}</div></div>
         <div class="dcell"><div class="k">${t('cam')} · DS-2CV2Q21FD-IW</div><div class="v">${onCnt}/${cams.length} ออนไลน์</div></div>
