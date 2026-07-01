@@ -172,11 +172,11 @@ button:active{transform:scale(.95)}
   .sheet{max-width:none;border-radius:18px 18px 0 0;max-height:90vh}
 }
   .navbtn{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50px;
-  background:rgba(0,0,0,.5);color:#fff;font-size:22px;border:none;cursor:pointer;display:grid;place-items:center}
-.navbtn:hover{background:rgba(0,0,0,.75)} .nleft{left:8px} .nright{right:8px}
-.camdots{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:5px}
-.camdots i{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.4)}
-.camdots i.on{background:#fff}
+    background:rgba(0,0,0,.5);color:#fff;font-size:22px;border:none;cursor:pointer;display:grid;place-items:center;
+    transition:background .15s}
+  .navbtn:hover{background:rgba(0,0,0,.75)}
+  .navbtn:active{transform:translateY(-50%) scale(.92)}
+  .nleft{left:8px} .nright{right:8px}
 </style>
 </head>
 <body>
