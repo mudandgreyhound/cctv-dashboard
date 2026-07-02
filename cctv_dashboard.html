@@ -469,7 +469,7 @@ function renderCam(){
       ${url?`<img class="snap" src="${url}" onerror="this.classList.add('snaperr')">`
            :`<div class="scene" style="--h1:${b.hue||'#1b2c3a'};--h2:#000"></div>`}
       <div class="ov"><div class="ovtop"><span class="rec"><b></b>REC</span>
-        <span class="ts">${fmtTs(DATA.checked_at)}</span></div>
+        <span class="ts">${fmtTs(c.checked_at)}</span></div>
         <span class="cam"><span class="dot ${c.status}" style="width:6px;height:6px;box-shadow:none"></span> CH${c.channel||1}</span></div>
       ${cams.length>1?`
         <button onclick="event.stopPropagation();camStep(-1)" class="navbtn nleft">‹</button>
