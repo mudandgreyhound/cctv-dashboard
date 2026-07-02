@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="th" data-t="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — CCTV Devices</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fafafa;--bg2:#fff;--bg3:#f2f2f0;--bg4:#e8e8e5;
+  --fg:#111;--fg2:#444;--fg3:#888;--fg4:#aaa;
+  --border:#e5e5e3;--border2:#d0d0cd;--card:#fff;
+  --online:#16a34a;--warning:#f59e0b;--offline:#dc2626;--blue:#2563eb;
+  --r:14px;--r2:10px;--ease:cubic-bezier(.22,.61,.36,1);--sans:'Prompt',sans-serif;
+  --shadow:0 1px 3px rgba(0,0,0,.06),0 6px 24px rgba(0,0,0,.04);
+}
+[data-t="dark"]{
+  --bg:#0c0c0c;--bg2:#161616;--bg3:#1c1c1a;--bg4:#262624;
+  --fg:#eee;--fg2:#bbb;--fg3:#777;--fg4:#555;
+  --border:#222;--border2:#333;--card:#161616;
+  --shadow:0 1px 3px rgba(0,0,0,.4),0 6px 24px rgba(0,0,0,.3);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--fg);
+  transition:background .3s var(--ease),color .3s var(--ease)}
+button{font-family:var(--sans);cursor:pointer;border:none;background:none;color:inherit}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;
+  padding:14px 18px;background:color-mix(in srgb,var(--bg) 80%,transparent);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:16px;flex:none}
+.brand .logo{width:30px;height:30px;border-radius:9px;background:var(--fg);color:var(--bg);
+  display:grid;place-items:center;font-size:15px}
+.search{flex:1;min-width:140px;display:flex;align-items:center;gap:8px;background:var(--bg2);
+  border:1.5px solid var(--border);border-radius:50px;padding:8px 14px}
+.search input{border:none;background:none;outline:none;color:var(--fg);font-size:14px;width:100%}
+.iconbtn{width:38px;height:38px;border-radius:50px;background:var(--bg2);border:1px solid var(--border);
+  display:grid;place-items:center;font-size:15px}
+.iconbtn:hover{background:var(--bg3)}
+.btn{padding:10px 18px;border-radius:50px;background:var(--fg);color:var(--bg);font-weight:600;font-size:14px}
+.btn:hover{opacity:.9} .btn.sm{padding:6px 12px;font-size:12px}
+.btn.danger{background:var(--offline);color:#fff}
+.btn.ghost{background:var(--bg2);color:var(--fg);border:1px solid var(--border)}
+.wrap{max-width:1240px;margin:0 auto;padding:18px}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.select,.finput{border:1.5px solid var(--border);border-radius:var(--r2);background:var(--bg2);
+  color:var(--fg);font-family:var(--sans);font-size:13px;padding:9px 12px;outline:none}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow)}
+th,td{padding:10px 12px;text-align:left;font-size:13px;border-bottom:1px solid var(--border)}
+th{background:var(--bg3);font-weight:600;color:var(--fg2);position:sticky;top:56px}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--bg3)}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:50px;font-size:11px;font-weight:600}
+.tag.nvr{background:color-mix(in srgb,var(--blue) 15%,transparent);color:var(--blue)}
+.tag.camera{background:color-mix(in srgb,var(--online) 15%,transparent);color:var(--online)}
+.tag.off{background:color-mix(in srgb,var(--offline) 12%,transparent);color:var(--offline)}
+.rowbtns{display:flex;gap:6px}
+.overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);
+  display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.show{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);width:100%;
+  max-width:480px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.mhead{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;
+  border-bottom:1px solid var(--border)}
+.mhead h3{font-size:16px;font-weight:600}
+.mbody{padding:18px;display:flex;flex-direction:column;gap:12px}
+.field label{display:block;font-size:12px;font-weight:500;color:var(--fg2);margin-bottom:5px}
+.field input,.field select{width:100%;padding:10px 12px;border:1.5px solid var(--border);
+  border-radius:var(--r2);background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;outline:none}
+.field input:focus,.field select:focus{border-color:var(--fg3)}
+.mfoot{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px;border-top:1px solid var(--border)}
+.toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-80px);z-index:99;
+  background:var(--fg);color:var(--bg);padding:11px 20px;border-radius:50px;font-size:13px;font-weight:500;
+  box-shadow:0 8px 30px rgba(0,0,0,.25);transition:transform .35s var(--ease)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--offline)}
+.empty{text-align:center;color:var(--fg4);padding:40px}
+@media(max-width:700px){
+  table{display:block;overflow-x:auto}
+  th{position:static}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="logo">🎥</span>CCTV Admin</div>
+  <label class="search">
+    <span style="color:var(--fg4)">🔍</span>
+    <input id="q" type="text" placeholder="ค้นหา code / ชื่อ / IP..." oninput="debounceLoad()">
+  </label>
+  <select class="select" id="ftype" onchange="load()">
+    <option value="">ทุกประเภท</option>
+    <option value="nvr">NVR เท่านั้น</option>
+    <option value="camera">Camera เท่านั้น</option>
+  </select>
+  <button class="btn" onclick="openModal()">+ เพิ่มอุปกรณ์</button>
+  <button class="iconbtn" title="กลับ Dashboard" onclick="location.href='cctv_dashboard.html'">🏠</button>
+  <button class="iconbtn" id="theme" onclick="toggleTheme()">🌙</button>
+</header>
+
+<main class="wrap">
+  <div class="toolbar">
+    <span style="font-size:13px;color:var(--fg3)" id="count">—</span>
+  </div>
+  <div style="overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>ประเภท</th><th>Code</th><th>ชื่อสาขา</th><th>IP</th><th>Ch</th>
+        <th>สังกัด NVR</th><th>สถานะ</th><th style="text-align:right">จัดการ</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</main>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <div class="mhead"><h3 id="mtitle">เพิ่มอุปกรณ์</h3>
+      <button class="iconbtn" onclick="closeModal()" style="border:none;background:var(--bg3)">✕</button></div>
+    <div class="mbody">
+      <input type="hidden" id="f_id">
+      <div class="field"><label>ประเภท</label>
+        <select id="f_device_type"><option value="nvr">NVR</option><option value="camera">Camera</option></select>
+      </div>
+      <div class="field"><label>Code (รหัสสาขา)</label><input id="f_code" placeholder="เช่น 0004 หรือ K0011"></div>
+      <div class="field"><label>ชื่อสาขา</label><input id="f_branch_name" placeholder="เช่น DSB - MBK 2nd Floor"></div>
+      <div class="field"><label>IP</label><input id="f_ip" placeholder="172.23.65.112"></div>
+      <div class="field"><label>Channel</label><input id="f_channel" type="number" min="1" value="1"></div>
+      <div class="field"><label>Model</label><input id="f_model" placeholder="DS-7104NI-Q1/4P/M"></div>
+      <div class="field" id="f_parent_wrap"><label>สังกัด NVR (เฉพาะ Camera)</label>
+        <select id="f_parent_id"><option value="">— ไม่ระบุ —</option></select>
+      </div>
+      <div class="field"><label>Username (ถ้าต่างจากค่า default)</label><input id="f_username" placeholder="admin"></div>
+      <div class="field"><label>Password (ถ้าต่างจากค่า default)</label><input id="f_password_enc" type="text" placeholder="เว้นว่าง = ใช้ค่า default"></div>
+      <div class="field"><label><input type="checkbox" id="f_active" checked style="width:auto;margin-right:6px">Active</label></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn ghost" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn" onclick="saveDevice()">บันทึก</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = 'https://cctvchecker.mobile1234.site';
+const TOKEN = sessionStorage.getItem('cctv_token');
+if(!TOKEN) location.replace('index.html');
+
+let ALL=[], NVRS=[];
+function toast(msg,err){const el=document.getElementById('toast');el.textContent=msg;
+  el.className='toast show'+(err?' err':'');setTimeout(()=>el.classList.remove('show'),2500);}
+
+let dtimer=null;
+function debounceLoad(){clearTimeout(dtimer);dtimer=setTimeout(load,350);}
+
+async function api(path,opts={}){
+  const r=await fetch(`${API_BASE}${path}`,{...opts,
+    headers:{'X-Token':TOKEN,'Content-Type':'application/json',...(opts.headers||{})}});
+  if(r.status===401){sessionStorage.removeItem('cctv_token');location.replace('index.html');throw new Error('unauth');}
+  if(!r.ok){const e=await r.json().catch(()=>({detail:r.statusText}));throw new Error(e.detail||'error');}
+  return r.status===204?null:r.json();
+}
+
+async function load(){
+  const q=document.getElementById('q').value.trim();
+  const dt=document.getElementById('ftype').value;
+  const params=new URLSearchParams(); if(q)params.set('q',q); if(dt)params.set('device_type',dt);
+  try{
+    ALL=await api('/api/cctv/devices?'+params.toString());
+    NVRS=ALL.filter(d=>d.device_type==='nvr');
+    render(); fillParentSelect();
+  }catch(e){toast('โหลดข้อมูลไม่สำเร็จ: '+e.message,true);}
+}
+
+function render(){
+  document.getElementById('count').textContent=`${ALL.length} รายการ`;
+  const tb=document.getElementById('tbody');
+  if(!ALL.length){tb.innerHTML=`<tr><td colspan="8" class="empty">— ไม่พบข้อมูล —</td></tr>`;return;}
+  tb.innerHTML=ALL.map(d=>`
+    <tr>
+      <td><span class="tag ${d.device_type}">${d.device_type==='nvr'?'NVR':'CAM'}</span></td>
+      <td><b>${d.code}</b></td>
+      <td>${d.branch_name}</td>
+      <td>${d.ip}</td>
+      <td>${d.channel}</td>
+      <td>${d.parent_name||'—'}</td>
+      <td>${d.active?'<span class="tag camera">Active</span>':'<span class="tag off">Inactive</span>'}</td>
+      <td><div class="rowbtns" style="justify-content:flex-end">
+        <button class="btn sm ghost" onclick='editDevice(${d.id})'>แก้ไข</button>
+        <button class="btn sm danger" onclick='deleteDevice(${d.id},"${d.branch_name.replace(/"/g,'')}")'>ลบ</button>
+      </div></td>
+    </tr>`).join('');
+}
+
+function fillParentSelect(){
+  const sel=document.getElementById('f_parent_id');
+  sel.innerHTML='<option value="">— ไม่ระบุ —</option>'+
+    NVRS.map(n=>`<option value="${n.id}">${n.code} — ${n.branch_name}</option>`).join('');
+}
+
+function openModal(device){
+  document.getElementById('mtitle').textContent=device?'แก้ไขอุปกรณ์':'เพิ่มอุปกรณ์';
+  document.getElementById('f_id').value=device?device.id:'';
+  document.getElementById('f_device_type').value=device?device.device_type:'nvr';
+  document.getElementById('f_code').value=device?device.code:'';
+  document.getElementById('f_branch_name').value=device?device.branch_name:'';
+  document.getElementById('f_ip').value=device?device.ip:'';
+  document.getElementById('f_channel').value=device?device.channel:1;
+  document.getElementById('f_model').value=device?(device.model||''):'';
+  document.getElementById('f_parent_id').value=device?(device.parent_id||''):'';
+  document.getElementById('f_username').value=device?(device.username||''):'';
+  document.getElementById('f_password_enc').value='';
+  document.getElementById('f_active').checked=device?!!device.active:true;
+  toggleParentField();
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal(){document.getElementById('overlay').classList.remove('show');}
+document.getElementById('f_device_type').addEventListener('change',toggleParentField);
+function toggleParentField(){
+  document.getElementById('f_parent_wrap').style.display=
+    document.getElementById('f_device_type').value==='camera'?'block':'none';
+}
+
+function editDevice(id){ openModal(ALL.find(d=>d.id===id)); }
+
+async function saveDevice(){
+  const id=document.getElementById('f_id').value;
+  const body={
+    code:document.getElementById('f_code').value.trim(),
+    branch_name:document.getElementById('f_branch_name').value.trim(),
+    ip:document.getElementById('f_ip').value.trim(),
+    device_type:document.getElementById('f_device_type').value,
+    model:document.getElementById('f_model').value.trim()||null,
+    parent_id:document.getElementById('f_parent_id').value||null,
+    channel:parseInt(document.getElementById('f_channel').value)||1,
+    active:document.getElementById('f_active').checked?1:0,
+  };
+  const u=document.getElementById('f_username').value.trim();
+  const p=document.getElementById('f_password_enc').value.trim();
+  if(u)body.username=u; if(p)body.password_enc=p;
+  if(!body.code||!body.branch_name||!body.ip){toast('กรอก Code / ชื่อสาขา / IP ให้ครบ',true);return;}
+
+  try{
+    if(id) await api(`/api/cctv/devices/${id}`,{method:'PUT',body:JSON.stringify(body)});
+    else   await api('/api/cctv/devices',{method:'POST',body:JSON.stringify(body)});
+    toast('บันทึกแล้ว ✓'); closeModal(); load();
+  }catch(e){toast('บันทึกไม่สำเร็จ: '+e.message,true);}
+}
+
+async function deleteDevice(id,name){
+  if(!confirm(`ปิดใช้งาน "${name}" ใช่ไหม? (soft delete — active=0)`))return;
+  try{ await api(`/api/cctv/devices/${id}`,{method:'DELETE'}); toast('ลบแล้ว ✓'); load(); }
+  catch(e){toast('ลบไม่สำเร็จ: '+e.message,true);}
+}
+
+let theme='light';
+function toggleTheme(){theme=theme==='light'?'dark':'light';
+  document.documentElement.setAttribute('data-t',theme);
+  document.getElementById('theme').textContent=theme==='light'?'🌙':'☀️';}
+
+load();
+</script>
+</body>
+</html>
