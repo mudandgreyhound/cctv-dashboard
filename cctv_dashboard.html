@@ -298,6 +298,7 @@ async function loadData(){
     b.nvr=b.nvr||{status:'offline'}; b.cam=b.camera||{status:'offline'};
     b.samples=b.samples||[]; if(b.uptime_24h==null)b.uptime_24h=0;
     b.checked_at=new Date(b.checked_at);
+    (b.cameras||[]).forEach(c=>{ c.checked_at = c.checked_at ? new Date(c.checked_at) : null; }); 
   });
   return d;
 }
@@ -345,7 +346,7 @@ function feedCell(cam,b,big){
   return `<div class="feed">${inner}
     ${warn?'<span class="warndot" title="ภาพผิดปกติ"></span>':''}
     <span class="chtag"><span class="dot ${cam.status}" style="width:6px;height:6px;box-shadow:none"></span>CH${ch}</span>
-    ${big?`<div class="ov"><div class="ovtop"><span class="rec"><b></b>REC</span><span class="ts">${fmtTs(DATA.checked_at)}</span></div></div>`:''}
+    ${big?`<div class="ov"><div class="ovtop"><span class="rec"><b></b>REC</span><span class="ts">${fmtTs(cam.checked_at)}</span></div></div>`:''}
   </div>`;
 }
 
