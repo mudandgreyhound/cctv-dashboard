@@ -1,136 +1,145 @@
-<!doctype html>
-<html lang="th" data-t="light">
-<head>
-<meta charset="utf-8">
+<!DOCTYPE html><html lang="th"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>เข้าสู่ระบบ — CCTV Monitor</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>Day End Monitor</title>
 <style>
-:root{
-  --bg:#fafafa;--bg2:#fff;--bg3:#f2f2f0;--fg:#111;--fg2:#444;--fg3:#888;--fg4:#aaa;
-  --border:#e5e5e3;--card:#fff;--accent:#111;--red:#dc2626;
-  --r:14px;--r2:10px;--ease:cubic-bezier(.22,.61,.36,1);--sans:'Prompt',sans-serif;
-  --shadow:0 1px 3px rgba(0,0,0,.06),0 10px 40px rgba(0,0,0,.06);
-}
-[data-t="dark"]{
-  --bg:#0c0c0c;--bg2:#161616;--bg3:#1c1c1a;--fg:#eee;--fg2:#bbb;--fg3:#777;--fg4:#555;
-  --border:#222;--card:#161616;--accent:#eee;
-  --shadow:0 1px 3px rgba(0,0,0,.4),0 10px 40px rgba(0,0,0,.4);
-}
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--sans);background:var(--bg);color:var(--fg);min-height:100vh;
-  display:grid;place-items:center;padding:20px;
-  transition:background .3s var(--ease),color .3s var(--ease);
-  background-image:radial-gradient(60% 50% at 50% 0%,color-mix(in srgb,var(--fg) 5%,transparent),transparent)}
-.themebtn{position:fixed;top:16px;right:16px;width:40px;height:40px;border-radius:50px;border:1px solid var(--border);
-  background:var(--bg2);color:inherit;font-size:16px;cursor:pointer;transition:background .2s}
-.themebtn:hover{background:var(--bg3)} .themebtn:active{transform:scale(.95)}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:#f5f6f8;color:#1f2937;padding:14px}
+.wrap{max-width:900px;margin:0 auto}
+.title{font-size:18px;font-weight:600;line-height:1.3}
+.sub{font-size:12px;color:#6b7280;margin:4px 0 12px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#1d9e75;vertical-align:1px}
+.err{background:#fcebeb;color:#791f1f;padding:8px 12px;border-radius:8px;font-size:12px;margin-bottom:12px;display:none}
 
-.card{width:100%;max-width:380px;background:var(--card);border:1px solid var(--border);
-  border-radius:var(--r);box-shadow:var(--shadow);padding:34px 30px}
-.logo{width:54px;height:54px;border-radius:15px;background:var(--accent);color:var(--bg);
-  display:grid;place-items:center;font-size:26px;margin:0 auto 16px}
-h1{font-size:20px;font-weight:600;text-align:center}
-.sub{font-size:13px;color:var(--fg3);text-align:center;margin-top:4px;margin-bottom:26px}
+/* ---- brand tabs ---- */
+.tabs{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab{flex:0 0 auto;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;background:#fff;border:1px solid #e5e7eb;color:#6b7280;cursor:pointer;white-space:nowrap;transition:.12s}
+.tab.active{background:#1f2937;color:#fff;border-color:#1f2937}
 
-label{display:block;font-size:12px;font-weight:500;color:var(--fg2);margin:0 0 6px 2px}
-.field{margin-bottom:16px}
-.inp{width:100%;border:1.5px solid var(--border);border-radius:var(--r2);background:var(--bg2);
-  color:var(--fg);font-family:var(--sans);font-size:14px;padding:12px 14px;outline:none;
-  transition:border .2s}
-.inp:focus{border-color:var(--fg3)}
-.inp::placeholder{color:var(--fg4)}
-.pwwrap{position:relative}
-.pwtoggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;
-  color:var(--fg4);cursor:pointer;font-size:13px;padding:4px}
+/* ---- summary cards = status filter ---- */
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+@media(max-width:560px){.cards{grid-template-columns:repeat(2,1fr)}}
+.card{border-radius:12px;padding:11px 13px;cursor:pointer;border:2px solid transparent;transition:.12s;user-select:none}
+.card .l{font-size:12px}.card .v{font-size:23px;font-weight:700;line-height:1.1;margin-top:2px}
+.card.active{border-color:currentColor;filter:saturate(1.1)}
+.c0{background:#fff;border:1px solid #e5e7eb}.c0 .l{color:#6b7280}.c0.active{border-color:#9ca3af}
+.c1{background:#e1f5ee;color:#0f6e56}.c1 .v{color:#085041}
+.c2{background:#faeeda;color:#854f0b}.c2 .v{color:#633806}
+.c3{background:#fcebeb;color:#a32d2d}.c3 .v{color:#791f1f}
 
-.btn{width:100%;border:none;border-radius:50px;background:var(--accent);color:var(--bg);
-  font-family:var(--sans);font-size:15px;font-weight:600;padding:13px;cursor:pointer;margin-top:6px;
-  transition:opacity .2s}
-.btn:hover{opacity:.9} .btn:active{transform:scale(.98)}
-.btn:disabled{opacity:.55;cursor:not-allowed}
-
-.err{display:none;background:color-mix(in srgb,var(--red) 12%,transparent);color:var(--red);
-  border:1px solid color-mix(in srgb,var(--red) 30%,transparent);border-radius:var(--r2);
-  font-size:13px;padding:10px 12px;margin-bottom:16px}
-.err.show{display:block}
-.foot{text-align:center;font-size:11px;color:var(--fg4);margin-top:22px;line-height:1.6}
-.spin{display:inline-block;width:15px;height:15px;border:2px solid currentColor;border-top-color:transparent;
-  border-radius:50%;animation:sp .6s linear infinite;vertical-align:-2px;margin-right:6px}
-@keyframes sp{to{transform:rotate(360deg)}}
-</style>
-</head>
-<body>
-<button class="themebtn" id="themebtn" onclick="toggleTheme()">🌙</button>
-
-<form class="card" id="form" onsubmit="doLogin(event)">
-  <div class="logo">🎥</div>
-  <h1>CCTV Monitor</h1>
-  <div class="sub">เข้าสู่ระบบเพื่อดูสถานะกล้องวงจรปิด</div>
-
+/* ---- shop list ---- */
+.list{display:flex;flex-direction:column;gap:8px}
+.item{background:#fff;border:1px solid #eceef0;border-radius:12px;padding:11px 12px}
+.it-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.it-name{min-width:0}
+.it-code{font-family:'Consolas',monospace;color:#2563eb;font-size:12px;font-weight:600}
+.it-shop{font-size:14px;font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it-right{text-align:right;flex-shrink:0}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
+.b-ok{background:#e1f5ee;color:#085041}.b-late{background:#faeeda;color:#633806}.b-long{background:#fcebeb;color:#791f1f}
+.it-days{font-size:11px;color:#dc2626;font-weight:600;margin-top:3px}
+.strip{display:flex;gap:5px;margin-top:10px}
+.day{flex:1;text-align:center}
+.day .dl{font-size:9px;color:#9ca3af;margin-bottom:3px}
+.cell{height:26px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.on{background:#1d9e75;color:#fff}.off{background:#f0f1f3;color:#cbd0d6;border:1px solid #e6e8eb}
+.empty{text-align:center;color:#9ca3af;font-size:13px;padding:24px}
+.search{position:relative;margin-bottom:12px}
+.search input{width:100%;padding:11px 38px 11px 14px;border:1px solid #e5e7eb;border-radius:10px;font-size:14px;background:#fff;color:#1f2937}
+.search input:focus{outline:none;border-color:#9ca3af}
+.search .clr{position:absolute;right:10px;top:50%;transform:translateY(-50%);width:22px;height:22px;border:none;background:#eceef0;color:#6b7280;border-radius:50%;font-size:13px;cursor:pointer;display:none}
+</style></head>
+<body><div class="wrap">
+  <div class="title">📋 Day End Monitor — สถานะปิดยอดรายสาขา</div>
+  <div class="sub"><span class="dot"></span> auto-refresh · <span id="ts">-</span></div>
   <div class="err" id="err"></div>
 
-  <div class="field">
-    <label for="u">ชื่อผู้ใช้</label>
-    <input class="inp" id="u" type="text" autocomplete="username" placeholder="username" required autofocus>
-  </div>
-  <div class="field">
-    <label for="p">รหัสผ่าน</label>
-    <div class="pwwrap">
-      <input class="inp" id="p" type="password" autocomplete="current-password" placeholder="••••••••" required>
-      <button type="button" class="pwtoggle" onclick="togglePw()" id="pwtoggle">แสดง</button>
-    </div>
+  <div class="tabs" id="tabs"></div>
+
+  <div class="cards">
+    <div class="card c0 active" data-f="ALL"><div class="l">ทั้งหมด</div><div class="v" id="s-total">-</div></div>
+    <div class="card c1" data-f="OK"><div class="l">ปกติ</div><div class="v" id="s-ok">-</div></div>
+    <div class="card c2" data-f="LATE1"><div class="l">ค้าง</div><div class="v" id="s-late">-</div></div>
+    <div class="card c3" data-f="LATE_LONG"><div class="l">ค้างนาน</div><div class="v" id="s-bad">-</div></div>
   </div>
 
-  <button class="btn" id="btn" type="submit">เข้าสู่ระบบ</button>
+  <div class="search">
+    <input id="q" type="search" inputmode="search" autocomplete="off" placeholder="🔍 ค้นหา รหัส หรือ ชื่อสาขา...">
+    <button class="clr" id="clr" title="ล้าง">✕</button>
+  </div>
 
-  <div class="foot">CMC Group · IT Support<br>9 สาขา · Hikvision NVR/Camera</div>
-</form>
-
+  <div class="list" id="list"></div>
+</div>
 <script>
-/* ====== CONFIG (ให้ตรงกับ dashboard) ====== */
-const API_BASE = 'https://cctvchecker.mobile1234.site';
-const DASHBOARD = 'cctv_dashboard.html';   // ไฟล์ปลายทางหลัง login (อยู่โฟลเดอร์เดียวกัน)
+const API_BASE = "https://dayendmonitor.mobile1234.site";
+const MAP={OK:{c:"b-ok",i:"✅",t:"ปกติ"},LATE1:{c:"b-late",i:"⚠️",t:"ค้าง"},LATE_LONG:{c:"b-long",i:"⛔",t:"ค้างนาน"}};
 
-/* ถ้ามี token อยู่แล้วและยังไม่หมดอายุ ข้ามไป dashboard เลย */
-if(sessionStorage.getItem('cctv_token')) location.replace(DASHBOARD);
+let allRows=[], dates=[], filter="ALL", brand=null, search="";
 
-let theme='light';
-function toggleTheme(){theme=theme==='light'?'dark':'light';
-  document.documentElement.setAttribute('data-t',theme);
-  document.getElementById('themebtn').textContent=theme==='light'?'🌙':'☀️';}
-function togglePw(){const p=document.getElementById('p'),b=document.getElementById('pwtoggle');
-  if(p.type==='password'){p.type='text';b.textContent='ซ่อน';}else{p.type='password';b.textContent='แสดง';}}
-
-function showErr(msg){const e=document.getElementById('err');e.textContent=msg;e.classList.add('show');}
-
-async function doLogin(ev){
-  ev.preventDefault();
-  const u=document.getElementById('u').value.trim();
-  const p=document.getElementById('p').value;
-  const btn=document.getElementById('btn');
-  document.getElementById('err').classList.remove('show');
-  btn.disabled=true; btn.innerHTML='<span class="spin"></span>กำลังเข้าสู่ระบบ...';
-  try{
-    const r=await fetch(`${API_BASE}/api/cctv/login`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({username:u,password:p})
-    });
-    if(r.ok){
-      const d=await r.json();
-      sessionStorage.setItem('cctv_token', d.token);
-      sessionStorage.setItem('cctv_user', d.user);
-      location.replace(DASHBOARD);
-      return;
-    }
-    if(r.status===401) showErr('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-    else showErr('เข้าสู่ระบบไม่สำเร็จ (HTTP '+r.status+')');
-  }catch(e){
-    showErr('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ — ตรวจการเชื่อมต่อ');
+function render(){
+  let rows = filter==="ALL" ? allRows : allRows.filter(r=>r.status===filter);
+  if(search){
+    const q=search.toLowerCase();
+    rows = rows.filter(r=>(r.code||"").toLowerCase().includes(q)||(r.name||"").toLowerCase().includes(q));
   }
-  btn.disabled=false; btn.textContent='เข้าสู่ระบบ';
+  const L=document.getElementById("list");
+  if(!rows.length){ L.innerHTML='<div class="empty">— ไม่พบสาขา —</div>'; return; }
+  L.innerHTML = rows.map(r=>{
+    const m=MAP[r.status]||MAP.LATE_LONG;
+    const days=(r.days_behind!=null&&r.days_behind>0)?'<div class="it-days">ค้าง '+r.days_behind+' วัน</div>':'';
+    const strip=(r.strip||[]).map((x,i)=>
+      '<div class="day"><div class="dl">'+(dates[i]||'')+'</div>'
+      +'<div class="cell '+(x?'on':'off')+'">'+(x?'X':'')+'</div></div>').join("");
+    return '<div class="item"><div class="it-top">'
+      +'<div class="it-name"><div class="it-code">'+r.code+'</div><div class="it-shop">'+r.name+'</div></div>'
+      +'<div class="it-right"><span class="badge '+m.c+'">'+m.i+' '+m.t+'</span>'+days+'</div>'
+      +'</div><div class="strip">'+strip+'</div></div>';
+  }).join("");
 }
-</script>
-</body>
-</html>
+
+document.querySelectorAll(".card").forEach(c=>c.addEventListener("click",()=>{
+  document.querySelectorAll(".card").forEach(x=>x.classList.remove("active"));
+  c.classList.add("active"); filter=c.dataset.f; render();
+}));
+
+const qEl=document.getElementById("q"), clrEl=document.getElementById("clr");
+qEl.addEventListener("input",()=>{
+  search=qEl.value.trim();
+  clrEl.style.display=search?"block":"none";
+  render();
+});
+clrEl.addEventListener("click",()=>{ qEl.value=""; search=""; clrEl.style.display="none"; render(); qEl.focus(); });
+
+async function buildTabs(){
+  try{
+    const j=await(await fetch(API_BASE+"/api/brands",{cache:"no-store"})).json();
+    brand=j.default;
+    document.getElementById("tabs").innerHTML=j.brands.map(b=>
+      '<div class="tab'+(b.code===brand?' active':'')+'" data-b="'+b.code+'">'+b.name+'</div>').join("");
+    document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+      document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+      t.classList.add("active"); brand=t.dataset.b; load();
+    }));
+  }catch(e){ /* ถ้าโหลด brands ไม่ได้ จะ fallback เป็น default ของ API */ }
+}
+
+async function load(){
+  try{
+    const url=API_BASE+"/api/status"+(brand?("?brand="+encodeURIComponent(brand)):"");
+    const j=await(await fetch(url,{cache:"no-store"})).json();
+    document.getElementById("ts").textContent="ข้อมูล ณ "+(j.checked_at||"-");
+    const e=document.getElementById("err");
+    if(j.error){e.style.display="block";e.textContent="⚠ ETL: "+j.error;}else{e.style.display="none";}
+    document.getElementById("s-total").textContent=j.summary.total;
+    document.getElementById("s-ok").textContent=j.summary.ok;
+    document.getElementById("s-late").textContent=j.summary.late;
+    document.getElementById("s-bad").textContent=j.summary.bad;
+    allRows=j.rows||[]; dates=j.dates||[]; render();
+  }catch(e){
+    document.getElementById("ts").textContent="โหลดไม่ได้: "+e;
+    const el=document.getElementById("err");el.style.display="block";
+    el.textContent="⚠ เชื่อมต่อ API ไม่ได้ — เช็ค API_BASE / CORS / tunnel";
+  }
+}
+
+(async()=>{ await buildTabs(); load(); setInterval(load,30000); })();
+</script></body></html>
