@@ -418,7 +418,7 @@ function render(){
 }
 
 function renderTabs(){
-  const defs=[['all',t('all')],['online',t('online')],['offline',t('offline')],['imgbad',t('imgbad')]];
+  const defs=[['all',t('all')],['online',t('online')],['imgbad',t('imgbad')],['offline',t('offline')]];
   document.getElementById('tabs').innerHTML=defs.map(([k,l])=>
     `<button class="tab ${filter===k?'active':''}" onclick="filter='${k}';renderTabs();render()">${l}</button>`).join('');
 }
