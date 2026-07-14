@@ -403,7 +403,9 @@ function render(){
     ||`<div style="grid-column:1/-1;text-align:center;color:var(--fg4);padding:50px">— ไม่พบสาขา —</div>`;
 
   // stats
+// stats
   const on=DATA.branches.filter(b=>b.status==='online').length;
+  const warn=DATA.branches.filter(b=>b.status==='warning').length;   // ★ ย้ายมาไว้ตรงนี้
   const off=DATA.branches.filter(b=>b.status==='offline').length;
   const up=Math.round(DATA.branches.reduce((a,b)=>a+b.uptime_24h,0)/DATA.branches.length*10)/10;
   document.getElementById('stats').innerHTML=`
@@ -413,7 +415,13 @@ function render(){
     <div class="stat"><div class="lbl">${t('uptime')}</div><div class="val">${up}<small>%</small></div></div>
     <div class="stat"><div class="lbl">${t('lastcheck')}</div><div class="val" style="font-size:22px">${fmtTs(DATA.checked_at)}</div></div>`;
 
-  const warn=DATA.branches.filter(b=>b.status==='warning').length;
+  document.getElementById('sum').innerHTML=
+    `<span class="chip"><span class="dot online"></span>${on}</span>
+     <span class="chip"><span class="dot warning"></span>${warn}</span>
+     <span class="chip"><span class="dot offline"></span>${off}</span>`;
+  document.getElementById('lastts').textContent=fmtTs(DATA.checked_at);
+}
+
   document.getElementById('sum').innerHTML=
     `<span class="chip"><span class="dot online"></span>${on}</span>
      <span class="chip"><span class="dot warning"></span>${warn}</span>
