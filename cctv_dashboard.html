@@ -55,13 +55,13 @@ button:active{transform:scale(.95)}
 .wrap{max-width:1240px;margin:0 auto;padding:18px}
 
 /* ---------- stat cards ---------- */
-.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:var(--r);
   padding:16px 18px;box-shadow:var(--shadow)}
 .stat .lbl{font-size:12px;color:var(--fg3);font-weight:500;letter-spacing:.2px}
 .stat .val{font-size:30px;font-weight:600;margin-top:6px;line-height:1;display:flex;align-items:baseline;gap:8px}
 .stat .val small{font-size:14px;color:var(--fg3);font-weight:400}
-.stat.acc-online .val{color:var(--online)} .stat.acc-offline .val{color:var(--offline)} .stat.acc-warning .val{color:var(--warning)}
+.stat.acc-online .val{color:var(--online)} .stat.acc-offline .val{color:var(--offline)}
 
 /* ---------- filter tabs ---------- */
 .tabs{display:flex;gap:8px;margin-bottom:16px;overflow-x:auto;scrollbar-width:none;scroll-snap-type:x proximity}
@@ -164,7 +164,7 @@ button:active{transform:scale(.95)}
 .foot{text-align:center;color:var(--fg4);font-size:12px;padding:24px 0 32px}
 
 @media(max-width:680px){
-  .stats{grid-template-columns:1fr 1fr 1fr}
+  .stats{grid-template-columns:1fr 1fr}
   .topbar{gap:8px;padding:12px} .sumchips{order:3;width:100%;justify-content:space-between}
   .chip{flex:1;justify-content:center}
   .grid{grid-template-columns:1fr}
@@ -408,7 +408,6 @@ function render(){
   const up=Math.round(DATA.branches.reduce((a,b)=>a+b.uptime_24h,0)/DATA.branches.length*10)/10;
   document.getElementById('stats').innerHTML=`
     <div class="stat acc-online"><div class="lbl">${t('online')}</div><div class="val">${on}<small>/ ${DATA.branches.length}</small></div></div>
-    <div class="stat acc-warning"><div class="lbl">${t('imgbad')}</div><div class="val">${warn}</div></div>
     <div class="stat acc-offline"><div class="lbl">${t('offline')}</div><div class="val">${off}</div></div>
     <div class="stat"><div class="lbl">${t('uptime')}</div><div class="val">${up}<small>%</small></div></div>
     <div class="stat"><div class="lbl">${t('lastcheck')}</div><div class="val" style="font-size:22px">${fmtTs(DATA.checked_at)}</div></div>`;
