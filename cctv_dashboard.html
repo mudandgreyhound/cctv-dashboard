@@ -188,6 +188,13 @@ button:active{transform:scale(.95)}
     <input id="q" type="text" oninput="render()" data-ph="ค้นหาสาขา / IP...">
   </label>
   <div class="sumchips" id="sum"></div>
+// ปุ่ม Export Excel ***********  
+  <button class="iconbtn" id="export" title="Export Excel" onclick="exportExcel()">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M6 9l6 6 6-6"/><path d="M21 21H3"/></svg>
+</button>
+// ปุ่ม Export Excel ***********
+  
+// ปุ่ม Refresh Page ***********  
   <button class="iconbtn" id="refresh" title="Refresh" onclick="refresh()">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>
   </button>
@@ -495,6 +502,29 @@ function toggleLang(){lang=lang==='th'?'en':'th';
 function toast(msg){const el=document.getElementById('toast');el.innerHTML='✓ '+msg;
   el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
 
+  // Function Export to Excel ******************************
+  async function exportExcel(){
+  if(CONFIG.USE_MOCK){ toast('โหมดจำลอง ไม่มีข้อมูลจริงให้ export'); return; }
+  const btn=document.getElementById('export');
+  btn.disabled=true;
+  try{
+    const r=await fetch(`${CONFIG.API_BASE}/api/cctv/export/excel`,{headers:{'X-Token':TOKEN}});
+    if(r.status===401){ logout(); return; }
+    if(!r.ok) throw new Error('export failed');
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`cctv_summary_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('ดาวน์โหลดแล้ว ✓');
+  }catch(e){
+    toast('Export ไม่สำเร็จ',true);
+  }
+  btn.disabled=false;
+}
+//*************************
+  
 async function refresh(){
   const btn=document.getElementById('refresh');btn.classList.add('spin');
   DATA=await loadData();render();
