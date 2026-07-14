@@ -392,7 +392,7 @@ function render(){
     b.name.toLowerCase().includes(q)||b.ip.includes(q)||b.code.includes(q));
   if(filter==='online')list=list.filter(b=>b.status==='online');
   else if(filter==='offline')list=list.filter(b=>b.status==='offline');
-  else if(filter==='imgbad')list=list.filter(b=>camList(b).some(c=>c.status==='warning'));
+  else if(filter==='imgbad')list=list.filter(b=>b.status==='warning');
 
   document.getElementById('grid').innerHTML=list.map(card).join('')
     ||`<div style="grid-column:1/-1;text-align:center;color:var(--fg4);padding:50px">— ไม่พบสาขา —</div>`;
