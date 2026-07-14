@@ -171,12 +171,12 @@ button:active{transform:scale(.95)}
   .overlay{align-items:flex-end;padding:0}
   .sheet{max-width:none;border-radius:18px 18px 0 0;max-height:90vh}
 }
-  .navbtn{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50px;
-    background:rgba(0,0,0,.5);color:#fff;font-size:22px;border:none;cursor:pointer;display:grid;place-items:center;
-    transition:background .15s}
-  .navbtn:hover{background:rgba(0,0,0,.75)}
-  .navbtn:active{transform:translateY(-50%) scale(.92)}
-  .nleft{left:8px} .nright{right:8px}
+.navbtn{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50px;
+  background:rgba(0,0,0,.5);color:#fff;font-size:22px;border:none;cursor:pointer;display:grid;place-items:center;
+  transition:background .15s}
+.navbtn:hover{background:rgba(0,0,0,.75)}
+.navbtn:active{transform:translateY(-50%) scale(.92)}
+.nleft{left:8px} .nright{right:8px}
 </style>
 </head>
 <body>
@@ -214,18 +214,13 @@ button:active{transform:scale(.95)}
 <div class="toast" id="toast"></div>
 
 <script>
-/* ============================================================
-   CONFIG — สลับเป็นต่อ FastAPI จริงได้ที่นี่
-   ตั้ง USE_MOCK=false แล้วเปิด API_BASE/API_KEY ให้ตรงกับ cctv_api.py
-   ============================================================ */
 const CONFIG = {
-  USE_MOCK: false,                                 // true = ข้อมูลจำลอง / false = ต่อ API จริง
-  API_BASE: 'https://cctvchecker.mobile1234.site', // tunnel ของ FastAPI (serve.py :9008)
-  LOGIN: 'index.html',                             // หน้า login (โฟลเดอร์เดียวกัน)
+  USE_MOCK: false,
+  API_BASE: 'https://cctvchecker.mobile1234.site',
+  LOGIN: 'index.html',
   REFRESH_MS: 1800000
 };
 
-/* ---------- auth gate: ไม่มี token = เด้งไป login ---------- */
 let TOKEN = null;
 if(!CONFIG.USE_MOCK){
   TOKEN = sessionStorage.getItem('cctv_token');
@@ -234,7 +229,6 @@ if(!CONFIG.USE_MOCK){
 function logout(){ sessionStorage.removeItem('cctv_token'); sessionStorage.removeItem('cctv_user');
   location.replace(CONFIG.LOGIN); }
 
-/* ---------- i18n ---------- */
 const I = {
   th:{title:'CCTV Monitor',online:'ออนไลน์',offline:'ออฟไลน์',uptime:'Uptime เฉลี่ย',lastcheck:'ตรวจล่าสุด',
       all:'ทั้งหมด',imgbad:'ภาพผิดปกติ',nvr:'NVR',cam:'กล้อง',lat:'หน่วง',view:'ดูภาพ',recent:'ประวัติการตรวจ 24 ชม.',
@@ -248,7 +242,6 @@ const I = {
 let lang='th', theme='light';
 const t = k => I[lang][k];
 
-/* ---------- ข้อมูลสาขาจริง 9 สาขา ---------- */
 const RAW = [
   ['0004','DSB - MBK 2nd Floor','172.23.65.112'],
   ['0014','DHS - Diana Dept Store Hadyai','172.23.66.176'],
@@ -262,12 +255,10 @@ const RAW = [
 ];
 const HUES = ['#1b3a5c','#3a2c1b','#1b3a2c','#2c1b3a','#3a1b2c','#1b2c3a','#2c3a1b','#3a3320','#202a3a'];
 
-/* ---------- mock generator ---------- */
 const rnd=(a,b)=>Math.round(a+Math.random()*(b-a));
 function genMock(){
   const now=new Date();
   const branches=RAW.map(([code,name,ip],i)=>{
-    // กำหนดเคสให้เห็นครบ: 0014 offline, 0017 ภาพไม่ชัด, ที่เหลือ online
     let nvr,cam;
     if(code==='0014'){nvr={status:'offline',latency_ms:null,error:'host unreachable'};cam={status:'offline'};}
     else if(code==='0017'){nvr={status:'online',latency_ms:rnd(15,40)};cam={status:'warning',latency_ms:rnd(20,50),error:'ภาพไม่ชัด'};}
@@ -285,38 +276,35 @@ function genMock(){
   return {checked_at:now,branches};
 }
 
-/* ---------- fetch (mock หรือ FastAPI จริง) ---------- */
 async function loadData(){
   if(CONFIG.USE_MOCK) return genMock();
   const r=await fetch(`${CONFIG.API_BASE}/api/cctv/status`,{headers:{'X-Token':TOKEN}});
-  if(r.status===401){ logout(); return {checked_at:new Date(),branches:[]}; }  // token หมดอายุ
+  if(r.status===401){ logout(); return {checked_at:new Date(),branches:[]}; }
   const d=await r.json();
-  d.checked_at=new Date(d.checked_at);          // ★ แปลงตัวบนสุดเป็น Date (กัน fmtTs พัง)
-  // map response -> โครงเดียวกับ mock
+  d.checked_at=new Date(d.checked_at);
   d.branches.forEach((b,i)=>{
     b.hue=HUES[i%HUES.length];
     b.nvr=b.nvr||{status:'offline'}; b.cam=b.camera||{status:'offline'};
     b.samples=b.samples||[]; if(b.uptime_24h==null)b.uptime_24h=0;
     b.checked_at=new Date(b.checked_at);
-    (b.cameras||[]).forEach(c=>{ c.checked_at = c.checked_at ? new Date(c.checked_at) : null; }); 
+    (b.cameras||[]).forEach(c=>{ c.checked_at = c.checked_at ? new Date(c.checked_at) : null; });
   });
   return d;
 }
 
 let DATA=null, filter='all';
 let sheetBranch=null, camIdx=0;
-  
-/* ---------- render ---------- */
+
 function statusOf(d){return d?d.status:'offline';}
 function fmtTs(dt){
   if(!dt) return '—';
-  if(!(dt instanceof Date)) dt=new Date(dt);     // กันกรณีเป็น string
+  if(!(dt instanceof Date)) dt=new Date(dt);
   if(isNaN(dt)) return '—';
   return dt.toLocaleTimeString(lang==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
 function sparkSVG(samples){
-  samples=(samples&&samples.length?samples:[0]).map(v=>v==null?0:v);  // null -> 0
+  samples=(samples&&samples.length?samples:[0]).map(v=>v==null?0:v);
   const w=100,h=26,n=samples.length;
   const pts=samples.map((v,i)=>`${n>1?(i/(n-1))*w:0},${h-(v/100)*(h-3)-1}`).join(' ');
   const last=samples[samples.length-1];
@@ -355,7 +343,7 @@ function feedHTML(b,big){
   if(!cams.length || b.status==='offline' && !cams.some(c=>c.status!=='offline'))
     return `<div class="feed down"><div class="nosignal">⚠<span>${t('nosignal')}</span></div></div>`;
   const n=cams.length;
-  const cls=n<=1?'g1':n===2?'g2':'g4';     // 1 / 2 / 4-grid
+  const cls=n<=1?'g1':n===2?'g2':'g4';
   return `<div class="feedgrid ${cls}">${cams.map(c=>feedCell(c,b,big&&n===1)).join('')}
     <span class="brc">${b.code} · ${n} กล้อง</span></div>`;
 }
@@ -402,12 +390,12 @@ function render(){
   document.getElementById('grid').innerHTML=list.map(card).join('')
     ||`<div style="grid-column:1/-1;text-align:center;color:var(--fg4);padding:50px">— ไม่พบสาขา —</div>`;
 
-  // stats
-// stats
+  // stats — ประกาศ warn ก่อนใช้งานเสมอ (แก้บั๊ก ReferenceError เดิม)
   const on=DATA.branches.filter(b=>b.status==='online').length;
-  const warn=DATA.branches.filter(b=>b.status==='warning').length;   // ★ ย้ายมาไว้ตรงนี้
+  const warn=DATA.branches.filter(b=>b.status==='warning').length;
   const off=DATA.branches.filter(b=>b.status==='offline').length;
   const up=Math.round(DATA.branches.reduce((a,b)=>a+b.uptime_24h,0)/DATA.branches.length*10)/10;
+
   document.getElementById('stats').innerHTML=`
     <div class="stat acc-online"><div class="lbl">${t('online')}</div><div class="val">${on}<small>/ ${DATA.branches.length}</small></div></div>
     <div class="stat acc-warning"><div class="lbl">${t('imgbad')}</div><div class="val">${warn}</div></div>
@@ -422,20 +410,12 @@ function render(){
   document.getElementById('lastts').textContent=fmtTs(DATA.checked_at);
 }
 
-  document.getElementById('sum').innerHTML=
-    `<span class="chip"><span class="dot online"></span>${on}</span>
-     <span class="chip"><span class="dot warning"></span>${warn}</span>
-     <span class="chip"><span class="dot offline"></span>${off}</span>`;
-  document.getElementById('lastts').textContent=fmtTs(DATA.checked_at);
-}
-
 function renderTabs(){
   const defs=[['all',t('all')],['online',t('online')],['offline',t('offline')],['imgbad',t('imgbad')]];
   document.getElementById('tabs').innerHTML=defs.map(([k,l])=>
     `<button class="tab ${filter===k?'active':''}" onclick="filter='${k}';renderTabs();render()">${l}</button>`).join('');
 }
 
-/* ---------- lightbox ---------- */
 function openSheet(code){
   const b=DATA.branches.find(x=>x.code===code);
   const log=genLog(b);
@@ -503,7 +483,6 @@ function genLog(b){
   return out;
 }
 
-/* ---------- controls ---------- */
 function toggleTheme(){theme=theme==='light'?'dark':'light';
   document.documentElement.setAttribute('data-t',theme);
   document.getElementById('theme').textContent=theme==='light'?'🌙':'☀️';}
@@ -523,7 +502,6 @@ async function refresh(){
   toast(t('refreshed'));
 }
 
-/* ---------- init ---------- */
 (async function init(){
   document.getElementById('q').placeholder=I.th.ph;
   if(!CONFIG.USE_MOCK){
@@ -531,7 +509,7 @@ async function refresh(){
     document.querySelector('[data-i="mock"]').textContent=I.th.mock;
   }
   DATA=await loadData();renderTabs();render();
-  setInterval(refresh,CONFIG.REFRESH_MS);   // auto-refresh
+  setInterval(refresh,CONFIG.REFRESH_MS);
 })();
 </script>
 </body>
