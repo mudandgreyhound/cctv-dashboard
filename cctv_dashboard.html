@@ -155,4 +155,471 @@ button:active{transform:scale(.95)}
 .toast{position:fixed;top:16px;left:50%;transform:translateX(-50%) translateY(-80px);z-index:99;
   background:var(--fg);color:var(--bg);padding:11px 20px;border-radius:50px;font-size:13px;font-weight:500;
   box-shadow:0 8px 30px rgba(0,0,0,.25);transition:transform .35s var(--ease);display:flex;align-items:center;gap:8px}
-.toast.show{transform:
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+.foot{text-align:center;color:var(--fg4);font-size:12px;padding:24px 0 32px}
+
+@media(max-width:680px){
+  .stats{grid-template-columns:1fr 1fr 1fr}
+  .topbar{gap:8px;padding:12px} .sumchips{order:3;width:100%;justify-content:space-between}
+  .chip{flex:1;justify-content:center}
+  .grid{grid-template-columns:1fr}
+  .overlay{align-items:flex-end;padding:0}
+  .sheet{max-width:none;border-radius:18px 18px 0 0;max-height:90vh}
+}
+.navbtn{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50px;
+  background:rgba(0,0,0,.5);color:#fff;font-size:22px;border:none;cursor:pointer;display:grid;place-items:center;
+  transition:background .15s}
+.navbtn:hover{background:rgba(0,0,0,.75)}
+.navbtn:active{transform:translateY(-50%) scale(.92)}
+.nleft{left:8px} .nright{right:8px}
+.iplink{color:var(--blue);text-decoration:none;font-weight:600}
+.iplink:hover{text-decoration:underline}
+.histbadge{background:rgba(37,99,235,.9);color:#fff;font-weight:600;padding:3px 9px;border-radius:6px;
+  font-size:11px;display:flex;align-items:center;gap:4px}
+.histbtn{position:absolute;top:8px;right:8px;z-index:3;background:rgba(0,0,0,.55);color:#fff;
+  border:none;border-radius:50px;padding:7px 13px;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s}
+.histbtn:hover{background:rgba(0,0,0,.8)}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand"><span class="logo">🎥</span><span data-i="title">CCTV Monitor</span></div>
+  <label class="search">
+    <span style="color:var(--fg4)">🔍</span>
+    <input id="q" type="text" oninput="render()" data-ph="ค้นหาสาขา / IP...">
+  </label>
+  <div class="sumchips" id="sum"></div>
+  <button class="iconbtn" id="export" title="Export Excel" onclick="exportExcel()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M6 9l6 6 6-6"/><path d="M21 21H3"/></svg>
+  </button>
+  <button class="iconbtn" id="refresh" title="Refresh" onclick="refresh()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 4v5h-5"/></svg>
+  </button>
+  <button class="iconbtn" id="lang" onclick="toggleLang()">TH</button>
+  <button class="iconbtn" id="theme" onclick="toggleTheme()">🌙</button>
+  <button class="iconbtn" id="logout" title="ออกจากระบบ" onclick="logout()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+  </button>
+</header>
+
+<main class="wrap">
+  <section class="stats" id="stats"></section>
+  <div class="tabs" id="tabs"></div>
+  <section class="grid" id="grid"></section>
+  <div class="foot">
+    <span data-i="lastcheck">ตรวจล่าสุด</span>: <span id="lastts">—</span> ·
+    NVR DS-7104NI-Q1/4P/M · Camera DS-2CV2Q21FD-IW · <span data-i="mock">ข้อมูลจำลอง (Mock)</span>
+  </div>
+</main>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this)closeSheet()">
+  <div class="sheet" id="sheet"></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const CONFIG = {
+  USE_MOCK: false,
+  API_BASE: 'https://cctvchecker.mobile1234.site',
+  LOGIN: 'index.html',
+  REFRESH_MS: 1800000
+};
+
+let TOKEN = null;
+if(!CONFIG.USE_MOCK){
+  TOKEN = sessionStorage.getItem('cctv_token');
+  if(!TOKEN){ location.replace(CONFIG.LOGIN); }
+}
+function logout(){ sessionStorage.removeItem('cctv_token'); sessionStorage.removeItem('cctv_user');
+  location.replace(CONFIG.LOGIN); }
+
+const I = {
+  th:{title:'CCTV Monitor',online:'ออนไลน์',offline:'ออฟไลน์',uptime:'Uptime เฉลี่ย',lastcheck:'ตรวจล่าสุด',
+      all:'ทั้งหมด',imgbad:'ภาพผิดปกติ',nvr:'NVR',cam:'กล้อง',lat:'หน่วง',view:'ดูภาพ',recent:'ประวัติการตรวจ 24 ชม.',
+      nosignal:'ไม่มีสัญญาณ',blur:'ภาพไม่ชัด',mock:'ข้อมูลจำลอง (Mock)',ip:'IP',model:'รุ่น',status:'สถานะ',
+      ph:'ค้นหาสาขา / IP...',uptimechart:'Uptime ราย ชม.',refreshed:'อัปเดตสถานะแล้ว',
+      backlive:'← กลับภาพล่าสุด',histimg:'ภาพย้อนหลัง'},
+  en:{title:'CCTV Monitor',online:'Online',offline:'Offline',uptime:'Avg Uptime',lastcheck:'Last check',
+      all:'All',imgbad:'Image issue',nvr:'NVR',cam:'Camera',lat:'Latency',view:'View',recent:'Last 24h checks',
+      nosignal:'NO SIGNAL',blur:'BLURRY',mock:'Mock data',ip:'IP',model:'Model',status:'Status',
+      ph:'Search branch / IP...',uptimechart:'Hourly uptime',refreshed:'Status updated',
+      backlive:'← Back to live',histimg:'Historical image'}
+};
+let lang='th', theme='light';
+const t = k => I[lang][k];
+
+const RAW = [
+  ['0004','DSB - MBK 2nd Floor','172.23.65.112'],
+  ['0014','DHS - Diana Dept Store Hadyai','172.23.66.176'],
+  ['0017','CSC - Seacon Square','172.23.67.16'],
+  ['0018','DTA - Amporn Ayudhaya','172.23.67.48'],
+  ['0019','CRD - Fashion Island','172.23.67.80'],
+  ['0020','DCS - Saveland Bangsan','172.23.67.112'],
+  ['0023','DXLB - Lotus Konkaen','172.23.67.208'],
+  ['0024','CSL - Lotus Srinakarin','172.23.68.240'],
+  ['0027','DYL3 - Lotus Pattaya #3','172.23.68.80'],
+];
+const HUES = ['#1b3a5c','#3a2c1b','#1b3a2c','#2c1b3a','#3a1b2c','#1b2c3a','#2c3a1b','#3a3320','#202a3a'];
+
+const rnd=(a,b)=>Math.round(a+Math.random()*(b-a));
+function genMock(){
+  const now=new Date();
+  const branches=RAW.map(([code,name,ip],i)=>{
+    let nvr,cam;
+    if(code==='0014'){nvr={status:'offline',latency_ms:null,error:'host unreachable'};cam={status:'offline'};}
+    else if(code==='0017'){nvr={status:'online',latency_ms:rnd(15,40)};cam={status:'warning',latency_ms:rnd(20,50),error:'ภาพไม่ชัด'};}
+    else {nvr={status:'online',latency_ms:rnd(8,45)};cam={status:'online',latency_ms:rnd(12,55)};}
+    const samples=Array.from({length:24},()=>{
+      if(code==='0014')return rnd(0,45);
+      if(code==='0017')return rnd(70,98);
+      return Math.random()<.08?rnd(60,90):rnd(96,100);
+    });
+    const up=Math.round(samples.reduce((a,b)=>a+b,0)/samples.length*10)/10;
+    const status=[nvr.status,cam.status].includes('offline')?'offline'
+                :[nvr.status,cam.status].includes('warning')?'warning':'online';
+    return {code,name,ip,nvr,cam,samples,uptime_24h:up,status,hue:HUES[i],checked_at:now};
+  });
+  return {checked_at:now,branches};
+}
+
+async function loadData(){
+  if(CONFIG.USE_MOCK) return genMock();
+  const r=await fetch(`${CONFIG.API_BASE}/api/cctv/status`,{headers:{'X-Token':TOKEN}});
+  if(r.status===401){ logout(); return {checked_at:new Date(),branches:[]}; }
+  const d=await r.json();
+  d.checked_at=new Date(d.checked_at);
+  d.branches.forEach((b,i)=>{
+    b.hue=HUES[i%HUES.length];
+    b.nvr=b.nvr||{status:'offline'}; b.cam=b.camera||{status:'offline'};
+    b.samples=b.samples||[]; if(b.uptime_24h==null)b.uptime_24h=0;
+    b.checked_at=new Date(b.checked_at);
+    (b.cameras||[]).forEach(c=>{ c.checked_at = c.checked_at ? new Date(c.checked_at) : null; });
+  });
+  return d;
+}
+
+let DATA=null, filter='all';
+let sheetBranch=null, camIdx=0, currentLog=[], historyView=null;
+
+function statusOf(d){return d?d.status:'offline';}
+function fmtTs(dt){
+  if(!dt) return '—';
+  if(!(dt instanceof Date)) dt=new Date(dt);
+  if(isNaN(dt)) return '—';
+  return dt.toLocaleTimeString(lang==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function sparkSVG(samples){
+  samples=(samples&&samples.length?samples:[0]).map(v=>v==null?0:v);
+  const w=100,h=26,n=samples.length;
+  const pts=samples.map((v,i)=>`${n>1?(i/(n-1))*w:0},${h-(v/100)*(h-3)-1}`).join(' ');
+  const last=samples[samples.length-1];
+  const col=last>=95?'var(--online)':last>=60?'var(--warning)':'var(--offline)';
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${pts}" fill="none" stroke="${col}" stroke-width="1.6" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+  </svg>`;
+}
+
+function camList(b){ return (b.cameras&&b.cameras.length)?b.cameras:(b.cam?[b.cam]:[]); }
+
+function snapUrlCam(cam){
+  if(CONFIG.USE_MOCK||!cam||!cam.snapshot_url) return null;
+  const bust=DATA&&DATA.checked_at?DATA.checked_at.getTime():Date.now();
+  return CONFIG.API_BASE+cam.snapshot_url+'?token='+encodeURIComponent(TOKEN)+'&t='+bust;
+}
+
+/* ---------- ประวัติจริงจาก DB ---------- */
+async function fetchLog(deviceId){
+  if(CONFIG.USE_MOCK || !deviceId) return [];
+  try{
+    const r=await fetch(`${CONFIG.API_BASE}/api/cctv/history/${deviceId}?hours=24`,{headers:{'X-Token':TOKEN}});
+    if(!r.ok) return [];
+    const rows=await r.json();
+    return rows.slice(0,20).map(row=>{
+      const dt=new Date(row.checked_at);
+      const tt=dt.toLocaleTimeString(lang==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit'});
+      let m;
+      if(row.status==='offline') m=(lang==='th'?'ออฟไลน์ — ':'Offline — ')+(row.error_msg||'');
+      else if(row.status==='warning') m=(lang==='th'?'ภาพผิดปกติ — ':'Issue — ')+(row.error_msg||'');
+      else m=(lang==='th'?`ปกติ · capture สำเร็จ (${row.latency_ms??'-'}ms)`:`OK · captured (${row.latency_ms??'-'}ms)`);
+      return {t:tt, s:row.status, m, id:row.id, hasSnap:!!row.has_snapshot};
+    });
+  }catch(e){ return []; }
+}
+function snapHistUrl(checkId){
+  return CONFIG.API_BASE+'/api/cctv/snapshot_history/'+checkId+'?token='+encodeURIComponent(TOKEN);
+}
+
+async function loadAndRenderLog(deviceId){
+  currentLog = CONFIG.USE_MOCK ? genLog(sheetBranch) : await fetchLog(deviceId);
+  renderLogPanel();
+}
+
+function renderLogPanel(){
+  const el=document.getElementById('logpanel');
+  if(!el) return;
+  el.innerHTML = currentLog.length ? currentLog.map(l=>{
+    const clickable = l.hasSnap && !CONFIG.USE_MOCK;
+    const activeCls = historyView && historyView.id===l.id ? ' active' : '';
+    return `<div class="logrow${activeCls}" data-clickable="${clickable?1:0}"
+        ${clickable?`onclick="showHistoryImage(${l.id},'${l.t}')"`:''}>
+      <span class="lt">${l.t}</span><span class="dot ${l.s}"></span><span class="lm">${l.m}</span>
+      ${clickable?`<span class="viewlink">${t('view')}</span>`:''}
+    </div>`;
+  }).join('') : `<div style="color:var(--fg4);font-size:13px;padding:10px 2px">— ไม่มีประวัติ —</div>`;
+}
+
+/* ---------- แสดงภาพย้อนหลังในจอหลัก (ไม่เปิดแท็บใหม่) ---------- */
+function showHistoryImage(checkId, tsLabel){
+  historyView = {id:checkId, url:snapHistUrl(checkId), ts:tsLabel};
+  renderCam();
+  renderLogPanel();
+}
+function backToLive(){
+  historyView=null;
+  renderCam();
+  renderLogPanel();
+}
+
+function feedCell(cam,b,big){
+  const ch=cam.channel||1;
+  const url=snapUrlCam(cam);
+  const warn=cam.status==='warning', off=cam.status==='offline';
+  if(off) return `<div class="feed down"><div class="nosignal" style="font-size:11px">⚠</div>
+    <span class="chtag">CH${ch}</span></div>`;
+  const inner=url
+    ? `<img class="snap" src="${url}" loading="lazy" alt="${b.code} ch${ch}" onerror="this.classList.add('snaperr')">`
+    : `<div class="scene" style="--h1:${b.hue||'#1b2c3a'};--h2:#000"></div>`;
+  return `<div class="feed">${inner}
+    ${warn?'<span class="warndot" title="ภาพผิดปกติ"></span>':''}
+    <span class="chtag"><span class="dot ${cam.status}" style="width:6px;height:6px;box-shadow:none"></span>CH${ch}</span>
+    ${big?`<div class="ov"><div class="ovtop"><span class="rec"><b></b>REC</span><span class="ts">${fmtTs(cam.checked_at)}</span></div></div>`:''}
+  </div>`;
+}
+
+function feedHTML(b,big){
+  const cams=camList(b);
+  if(!cams.length || b.status==='offline' && !cams.some(c=>c.status!=='offline'))
+    return `<div class="feed down"><div class="nosignal">⚠<span>${t('nosignal')}</span></div></div>`;
+  const n=cams.length;
+  const cls=n<=1?'g1':n===2?'g2':'g4';
+  return `<div class="feedgrid ${cls}">${cams.map(c=>feedCell(c,b,big&&n===1)).join('')}
+    <span class="brc">${b.code} · ${n} กล้อง</span></div>`;
+}
+
+function badge(label,st){
+  const map={online:['ok','✓'],warning:['warn','⚠'],offline:['bad','✕']};
+  const [c,ic]=map[st]||map.offline;
+  return `<span class="badge ${c}"><span class="dot ${st}" style="width:7px;height:7px;box-shadow:none"></span>${label} ${ic}</span>`;
+}
+
+function card(b){
+  const lat=b.nvr&&b.nvr.latency_ms!=null?b.nvr.latency_ms+'ms':'—';
+  const cams=camList(b);
+  const onCnt=(b.cam_online!=null)?b.cam_online:cams.filter(c=>c.status==='online').length;
+  const total=(b.cam_count!=null)?b.cam_count:cams.length;
+  const camSt=total===0?'offline':onCnt===total?'online':onCnt>0?'warning':'warning';
+  return `<article class="bcard" onclick='openSheet("${b.code}")'>
+    ${feedHTML(b,false)}
+    <div class="binfo">
+      <div class="brow"><div class="bname"><span class="dot ${b.status}"></span>
+        <span class="nm">${b.name}</span></div></div>
+      <div class="bcode">#${b.code}</div>
+      <div class="ip">${b.ip}</div>
+      <div class="badges">
+        ${badge(t('nvr'),statusOf(b.nvr))}
+        <span class="badge ${camSt==='online'?'ok':camSt==='warning'?'warn':'bad'}">
+          <span class="dot ${camSt}" style="width:7px;height:7px;box-shadow:none"></span>${t('cam')} ${onCnt}/${total}</span>
+        <span class="lat">${t('lat')} ${lat}</span>
+      </div>
+      <div class="spark">${sparkSVG(b.samples)}<span class="pct" style="color:${b.uptime_24h>=95?'var(--online)':b.uptime_24h>=60?'var(--warning)':'var(--offline)'}">${b.uptime_24h}%</span></div>
+    </div>
+  </article>`;
+}
+
+function render(){
+  if(!DATA)return;
+  const q=(document.getElementById('q').value||'').toLowerCase();
+  let list=DATA.branches.filter(b=>
+    b.name.toLowerCase().includes(q)||b.ip.includes(q)||b.code.includes(q));
+  if(filter==='online')list=list.filter(b=>b.status==='online');
+  else if(filter==='offline')list=list.filter(b=>b.status==='offline');
+  else if(filter==='imgbad')list=list.filter(b=>b.status==='warning');
+
+  document.getElementById('grid').innerHTML=list.map(card).join('')
+    ||`<div style="grid-column:1/-1;text-align:center;color:var(--fg4);padding:50px">— ไม่พบสาขา —</div>`;
+
+  const on=DATA.branches.filter(b=>b.status==='online').length;
+  const warn=DATA.branches.filter(b=>b.status==='warning').length;
+  const off=DATA.branches.filter(b=>b.status==='offline').length;
+  const up=Math.round(DATA.branches.reduce((a,b)=>a+b.uptime_24h,0)/DATA.branches.length*10)/10;
+
+  document.getElementById('stats').innerHTML=`
+    <div class="stat acc-online"><div class="lbl">${t('online')}</div><div class="val">${on}<small>/ ${DATA.branches.length}</small></div></div>
+    <div class="stat acc-warning"><div class="lbl">${t('imgbad')}</div><div class="val">${warn}</div></div>
+    <div class="stat acc-offline"><div class="lbl">${t('offline')}</div><div class="val">${off}</div></div>
+    <div class="stat"><div class="lbl">${t('uptime')}</div><div class="val">${up}<small>%</small></div></div>
+    <div class="stat"><div class="lbl">${t('lastcheck')}</div><div class="val" style="font-size:22px">${fmtTs(DATA.checked_at)}</div></div>`;
+
+  document.getElementById('sum').innerHTML=
+    `<span class="chip"><span class="dot online"></span>${on}</span>
+     <span class="chip"><span class="dot warning"></span>${warn}</span>
+     <span class="chip"><span class="dot offline"></span>${off}</span>`;
+  document.getElementById('lastts').textContent=fmtTs(DATA.checked_at);
+}
+
+function renderTabs(){
+  const defs=[['all',t('all')],['online',t('online')],['imgbad',t('imgbad')],['offline',t('offline')]];
+  document.getElementById('tabs').innerHTML=defs.map(([k,l])=>
+    `<button class="tab ${filter===k?'active':''}" onclick="filter='${k}';renderTabs();render()">${l}</button>`).join('');
+}
+
+async function openSheet(code){
+  const b=DATA.branches.find(x=>x.code===code);
+  sheetBranch=b; camIdx=0; historyView=null; currentLog=[];
+  const cams=camList(b);
+  const onCnt=cams.filter(c=>c.status==='online').length;
+  document.getElementById('sheet').innerHTML=`
+    <div class="shead"><div class="t"><span class="dot ${b.status}"></span>${b.name}</div>
+      <button class="iconbtn" onclick="closeSheet()" style="border:none;background:var(--bg3)">✕</button></div>
+    <div class="sbody">
+      <div id="camviewer"></div>
+      <div class="dgrid">
+        <div class="dcell"><div class="k">${t('ip')}</div><div class="v"><a href="http://${b.ip}" target="_blank" rel="noopener" class="iplink">${b.ip} ↗</a></div></div>
+        <div class="dcell"><div class="k">${t('status')}</div><div class="v" style="color:var(--${b.status})">${t(b.status==='warning'?'imgbad':b.status)}</div></div>
+        <div class="dcell"><div class="k">${t('nvr')} · DS-7104NI-Q1</div><div class="v">${badge('',statusOf(b.nvr))}</div></div>
+        <div class="dcell"><div class="k">${t('cam')} · DS-2CV2Q21FD-IW</div><div class="v">${onCnt}/${cams.length} ออนไลน์</div></div>
+        <div class="dcell"><div class="k">${t('lat')}</div><div class="v">${b.nvr&&b.nvr.latency_ms!=null?b.nvr.latency_ms+' ms':'—'}</div></div>
+        <div class="dcell"><div class="k">${t('uptime')} 24h</div><div class="v">${b.uptime_24h}%</div></div>
+      </div>
+      <div class="sect">${t('uptimechart')}</div>
+      <div class="bar">${b.samples.map(v=>{v=v==null?0:v;
+        const cls=v>=95?'':v>=60?'w':v>=1?'d':'n';
+        return `<i class="${cls}" style="height:${Math.max(v,3)}%" title="${v}%"></i>`;}).join('')}</div>
+      <div class="axis"><span>-24h</span><span>-12h</span><span>${t('lastcheck')}</span></div>
+      <div class="sect">${t('recent')}</div>
+      <div class="log" id="logpanel"><div style="color:var(--fg4);font-size:13px;padding:10px 2px">…</div></div>
+    </div>`;
+  renderCam();
+  document.getElementById('overlay').classList.add('show');
+  const firstId = cams[0] ? cams[0].device_id : (b.nvr ? b.nvr.device_id : null);
+  loadAndRenderLog(firstId);
+}
+function closeSheet(){document.getElementById('overlay').classList.remove('show');}
+
+function renderCam(){
+  const b=sheetBranch, cams=camList(b);
+  if(!cams.length){document.getElementById('camviewer').innerHTML=
+    `<div class="feed down"><div class="nosignal">⚠ ไม่มีสัญญาณ</div></div>`;return;}
+  if(camIdx<0)camIdx=cams.length-1; if(camIdx>=cams.length)camIdx=0;
+  const c=cams[camIdx];
+
+  /* ---- โหมดดูภาพย้อนหลัง ---- */
+  if(historyView){
+    document.getElementById('camviewer').innerHTML=`
+      <div class="feed" style="aspect-ratio:16/10;border-radius:10px;overflow:hidden">
+        <img class="snap" src="${historyView.url}" onerror="this.classList.add('snaperr')">
+        <div class="ov"><div class="ovtop"><span class="histbadge">🕒 ${t('histimg')}</span><span class="ts">${historyView.ts}</span></div></div>
+        <button onclick="event.stopPropagation();backToLive()" class="histbtn">${t('backlive')}</button>
+      </div>
+      <div style="text-align:center;font-size:12px;color:var(--fg3);margin-top:8px">
+        CH${c.channel||1}${cams.length>1?` · กล้อง ${camIdx+1}/${cams.length}`:''}</div>`;
+    return;
+  }
+
+  /* ---- โหมด live ปกติ ---- */
+  const url=snapUrlCam(c);
+  document.getElementById('camviewer').innerHTML=`
+    <div class="feed" style="aspect-ratio:16/10;border-radius:10px;overflow:hidden">
+      ${url?`<img class="snap" src="${url}" onerror="this.classList.add('snaperr')">`
+           :`<div class="scene" style="--h1:${b.hue||'#1b2c3a'};--h2:#000"></div>`}
+      <div class="ov"><div class="ovtop"><span class="rec"><b></b>REC</span>
+        <span class="ts">${fmtTs(c.checked_at)}</span></div>
+        <span class="cam"><span class="dot ${c.status}" style="width:6px;height:6px;box-shadow:none"></span> CH${c.channel||1}</span></div>
+      ${cams.length>1?`
+        <button onclick="event.stopPropagation();camStep(-1)" class="navbtn nleft">‹</button>
+        <button onclick="event.stopPropagation();camStep(1)" class="navbtn nright">›</button>
+        <div class="camdots">${cams.map((_,i)=>`<i class="${i===camIdx?'on':''}"></i>`).join('')}</div>`:''}
+    </div>
+    <div style="text-align:center;font-size:12px;color:var(--fg3);margin-top:8px">
+      กล้อง ${camIdx+1} / ${cams.length} · CH${c.channel||1}${c.status==='warning'?' · ⚠ ภาพผิดปกติ':''}</div>`;
+}
+
+/* สลับกล้อง -> กลับสู่ live เสมอ + โหลดประวัติของกล้องที่เพิ่งสลับไป */
+function camStep(d){
+  camIdx+=d;
+  historyView=null;
+  renderCam();
+  const cams=camList(sheetBranch);
+  const dev=cams[((camIdx%cams.length)+cams.length)%cams.length];
+  loadAndRenderLog(dev ? dev.device_id : null);
+}
+
+function genLog(b){
+  const out=[],now=new Date();
+  for(let i=0;i<7;i++){
+    const dt=new Date(now-i*7*60000);
+    const tt=dt.toLocaleTimeString(lang==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit'});
+    let s=b.status,m;
+    if(b.status==='offline')m=lang==='th'?'NVR ไม่ตอบสนอง (timeout)':'NVR unreachable (timeout)';
+    else if(b.status==='warning'&&i<3)m=lang==='th'?'ภาพไม่ชัด — ตรวจเลนส์/โฟกัส':'Blurry image — check lens/focus';
+    else {s='online';m=lang==='th'?`ปกติ · capture สำเร็จ (${rnd(10,50)}ms)`:`OK · captured (${rnd(10,50)}ms)`;}
+    out.push({t:tt,s,m,hasSnap:false});
+  }
+  return out;
+}
+
+function toggleTheme(){theme=theme==='light'?'dark':'light';
+  document.documentElement.setAttribute('data-t',theme);
+  document.getElementById('theme').textContent=theme==='light'?'🌙':'☀️';}
+function toggleLang(){lang=lang==='th'?'en':'th';
+  document.getElementById('lang').textContent=lang==='th'?'TH':'EN';
+  document.documentElement.lang=lang;
+  document.getElementById('q').placeholder=t('ph');
+  document.querySelectorAll('[data-i]').forEach(e=>e.textContent=t(e.dataset.i));
+  renderTabs();render();}
+function toast(msg){const el=document.getElementById('toast');el.innerHTML='✓ '+msg;
+  el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
+
+async function exportExcel(){
+  if(CONFIG.USE_MOCK){ toast('โหมดจำลอง ไม่มีข้อมูลจริงให้ export'); return; }
+  const btn=document.getElementById('export');
+  btn.disabled=true;
+  try{
+    const r=await fetch(`${CONFIG.API_BASE}/api/cctv/export/excel`,{headers:{'X-Token':TOKEN}});
+    if(r.status===401){ logout(); return; }
+    if(!r.ok) throw new Error('export failed');
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url; a.download=`cctv_summary_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('ดาวน์โหลดแล้ว ✓');
+  }catch(e){
+    toast('Export ไม่สำเร็จ');
+  }
+  btn.disabled=false;
+}
+
+async function refresh(){
+  const btn=document.getElementById('refresh');btn.classList.add('spin');
+  DATA=await loadData();render();
+  setTimeout(()=>btn.classList.remove('spin'),700);
+  toast(t('refreshed'));
+}
+
+(async function init(){
+  document.getElementById('q').placeholder=I.th.ph;
+  if(!CONFIG.USE_MOCK){
+    I.th.mock='ข้อมูลจริง (Live)'; I.en.mock='Live data';
+    document.querySelector('[data-i="mock"]').textContent=I.th.mock;
+  }
+  DATA=await loadData();renderTabs();render();
+  setInterval(refresh,CONFIG.REFRESH_MS);
+})();
+</script>
+</body>
+</html>
