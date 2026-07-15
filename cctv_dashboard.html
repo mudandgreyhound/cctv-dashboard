@@ -523,6 +523,10 @@ function renderCam(){
         <img class="snap" src="${historyView.url}" onerror="this.classList.add('snaperr')">
         <div class="ov"><div class="ovtop"><span class="histbadge">🕒 ${t('histimg')}</span><span class="ts">${historyView.ts}</span></div></div>
         <button onclick="event.stopPropagation();backToLive()" class="histbtn">${t('backlive')}</button>
+        ${cams.length>1?`
+          <button onclick="event.stopPropagation();camStep(-1)" class="navbtn nleft">‹</button>
+          <button onclick="event.stopPropagation();camStep(1)" class="navbtn nright">›</button>
+          <div class="camdots">${cams.map((_,i)=>`<i class="${i===camIdx?'on':''}"></i>`).join('')}</div>`:''}
       </div>
       <div style="text-align:center;font-size:12px;color:var(--fg3);margin-top:8px">
         CH${c.channel||1}${cams.length>1?` · กล้อง ${camIdx+1}/${cams.length}`:''}</div>`;
