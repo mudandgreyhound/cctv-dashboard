@@ -301,7 +301,8 @@ async function loadData(){
 }
 
 let DATA=null, filter='all';
-let sheetBranch=null, camIdx=0, currentLog=[], historyView=null;
+let sheetBranch=null, camIdx=0, currentLog=[];
+let historyGroup=null, historyIdx=0, historyClickedId=null;
 
 function statusOf(d){return d?d.status:'offline';}
 function fmtTs(dt){
@@ -362,9 +363,9 @@ function renderLogPanel(){
   if(!el) return;
   el.innerHTML = currentLog.length ? currentLog.map(l=>{
     const clickable = l.hasSnap && !CONFIG.USE_MOCK;
-    const activeCls = historyView && historyView.id===l.id ? ' active' : '';
+    const activeCls = historyClickedId===l.id ? ' active' : '';
     return `<div class="logrow${activeCls}" data-clickable="${clickable?1:0}"
-        ${clickable?`onclick="showHistoryImage(${l.id},'${l.t}')"`:''}>
+        ${clickable?`onclick="showHistoryGroup(${l.id})"`:''}>
       <span class="lt">${l.t}</span><span class="dot ${l.s}"></span><span class="lm">${l.m}</span>
       ${clickable?`<span class="viewlink">${t('view')}</span>`:''}
     </div>`;
@@ -372,13 +373,31 @@ function renderLogPanel(){
 }
 
 /* ---------- แสดงภาพย้อนหลังในจอหลัก (ไม่เปิดแท็บใหม่) ---------- */
-function showHistoryImage(checkId, tsLabel){
-  historyView = {id:checkId, url:snapHistUrl(checkId), ts:tsLabel};
+async function showHistoryGroup(checkId){
+  try{
+    const r=await fetch(`${CONFIG.API_BASE}/api/cctv/snapshot_group/${checkId}`,{headers:{'X-Token':TOKEN}});
+    if(!r.ok) return;
+    const data=await r.json();
+    if(!data.images || !data.images.length) return;
+    historyGroup = data.images.map(im=>({
+      ...im,
+      url: im.snapshot_url ? CONFIG.API_BASE+im.snapshot_url+'?token='+encodeURIComponent(TOKEN) : null
+    }));
+    const curDev = camList(sheetBranch)[camIdx];
+    const idx = historyGroup.findIndex(im=>im.device_id===(curDev&&curDev.device_id));
+    historyIdx = idx>=0 ? idx : 0;
+    historyClickedId = checkId;
+    renderCam();
+    renderLogPanel();
+  }catch(e){}
+}
+function histStep(d){
+  if(!historyGroup||!historyGroup.length) return;
+  historyIdx=(historyIdx+d+historyGroup.length)%historyGroup.length;
   renderCam();
-  renderLogPanel();
 }
 function backToLive(){
-  historyView=null;
+  historyGroup=null; historyIdx=0; historyClickedId=null;
   renderCam();
   renderLogPanel();
 }
@@ -478,7 +497,7 @@ function renderTabs(){
 
 async function openSheet(code){
   const b=DATA.branches.find(x=>x.code===code);
-  sheetBranch=b; camIdx=0; historyView=null; currentLog=[];
+  sheetBranch=b; camIdx=0; historyGroup=null; historyIdx=0; historyClickedId=null; currentLog=[];
   const cams=camList(b);
   const onCnt=cams.filter(c=>c.status==='online').length;
   document.getElementById('sheet').innerHTML=`
@@ -516,20 +535,22 @@ function renderCam(){
   if(camIdx<0)camIdx=cams.length-1; if(camIdx>=cams.length)camIdx=0;
   const c=cams[camIdx];
 
-  /* ---- โหมดดูภาพย้อนหลัง ---- */
-  if(historyView){
+  /* ---- โหมดดูภาพย้อนหลัง (ครบทุกกล้องของรอบเดียวกัน) ---- */
+  if(historyGroup && historyGroup.length){
+    const im=historyGroup[historyIdx];
     document.getElementById('camviewer').innerHTML=`
       <div class="feed" style="aspect-ratio:16/10;border-radius:10px;overflow:hidden">
-        <img class="snap" src="${historyView.url}" onerror="this.classList.add('snaperr')">
-        <div class="ov"><div class="ovtop"><span class="histbadge">🕒 ${t('histimg')}</span><span class="ts">${historyView.ts}</span></div></div>
+        ${im.url?`<img class="snap" src="${im.url}" onerror="this.classList.add('snaperr')">`
+                :`<div class="nosignal">⚠</div>`}
+        <div class="ov"><div class="ovtop"><span class="histbadge">🕒 ${t('histimg')}</span><span class="ts">${fmtTs(new Date(im.checked_at))}</span></div></div>
         <button onclick="event.stopPropagation();backToLive()" class="histbtn">${t('backlive')}</button>
-        ${cams.length>1?`
-          <button onclick="event.stopPropagation();camStep(-1)" class="navbtn nleft">‹</button>
-          <button onclick="event.stopPropagation();camStep(1)" class="navbtn nright">›</button>
-          <div class="camdots">${cams.map((_,i)=>`<i class="${i===camIdx?'on':''}"></i>`).join('')}</div>`:''}
+        ${historyGroup.length>1?`
+          <button onclick="event.stopPropagation();histStep(-1)" class="navbtn nleft">‹</button>
+          <button onclick="event.stopPropagation();histStep(1)" class="navbtn nright">›</button>
+          <div class="camdots">${historyGroup.map((_,i)=>`<i class="${i===historyIdx?'on':''}"></i>`).join('')}</div>`:''}
       </div>
       <div style="text-align:center;font-size:12px;color:var(--fg3);margin-top:8px">
-        CH${c.channel||1}${cams.length>1?` · กล้อง ${camIdx+1}/${cams.length}`:''}</div>`;
+        CH${im.channel} · ${t('histimg')} ${historyIdx+1}/${historyGroup.length}</div>`;
     return;
   }
 
@@ -554,7 +575,7 @@ function renderCam(){
 /* สลับกล้อง -> กลับสู่ live เสมอ + โหลดประวัติของกล้องที่เพิ่งสลับไป */
 function camStep(d){
   camIdx+=d;
-  historyView=null;
+  historyGroup=null; historyIdx=0; historyClickedId=null;
   renderCam();
   const cams=camList(sheetBranch);
   const dev=cams[((camIdx%cams.length)+cams.length)%cams.length];
