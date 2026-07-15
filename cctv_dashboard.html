@@ -146,10 +146,12 @@ button:active{transform:scale(.95)}
 .dcell .v{font-size:14px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
 .sect{font-size:12px;color:var(--fg3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin:18px 0 10px}
 .log{display:flex;flex-direction:column;gap:0}
-.logrow{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--border);font-size:13px}
+.logrow{display:flex;align-items:center;gap:11px;padding:9px 2px;border-bottom:1px solid var(--border);font-size:13px;position:relative}
 .logrow:last-child{border:none}
 .logrow .lt{color:var(--fg3);font-variant-numeric:tabular-nums;flex:none;width:62px}
 .logrow .lm{color:var(--fg2);flex:1}
+.viewlink{margin-left:auto;font-size:12px;color:var(--blue);text-decoration:none;font-weight:600;flex:none}
+.viewlink:hover{text-decoration:underline}
 .bar{display:flex;gap:3px;align-items:flex-end;height:54px;margin-top:4px}
 .bar i{flex:1;border-radius:3px 3px 0 0;background:var(--online);min-height:3px;transition:height .4s var(--ease)}
 .bar i.w{background:var(--warning)} .bar i.d{background:var(--offline)} .bar i.n{background:var(--bg4)}
@@ -177,6 +179,8 @@ button:active{transform:scale(.95)}
 .navbtn:hover{background:rgba(0,0,0,.75)}
 .navbtn:active{transform:translateY(-50%) scale(.92)}
 .nleft{left:8px} .nright{right:8px}
+.iplink{color:var(--blue);text-decoration:none;font-weight:600}
+.iplink:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -329,6 +333,28 @@ function snapUrlCam(cam){
   return CONFIG.API_BASE+cam.snapshot_url+'?token='+encodeURIComponent(TOKEN)+'&t='+bust;
 }
 
+/* ★ ดึงประวัติจริงจาก DB (แทน genLog สุ่ม) */
+async function fetchLog(deviceId){
+  if(CONFIG.USE_MOCK || !deviceId) return [];
+  try{
+    const r=await fetch(`${CONFIG.API_BASE}/api/cctv/history/${deviceId}?hours=24`,{headers:{'X-Token':TOKEN}});
+    if(!r.ok) return [];
+    const rows=await r.json();
+    return rows.slice(0,20).map(row=>{
+      const dt=new Date(row.checked_at);
+      const tt=dt.toLocaleTimeString(lang==='th'?'th-TH':'en-GB',{hour:'2-digit',minute:'2-digit'});
+      let m;
+      if(row.status==='offline') m=(lang==='th'?'ออฟไลน์ — ':'Offline — ')+(row.error_msg||'');
+      else if(row.status==='warning') m=(lang==='th'?'ภาพผิดปกติ — ':'Issue — ')+(row.error_msg||'');
+      else m=(lang==='th'?`ปกติ · capture สำเร็จ (${row.latency_ms??'-'}ms)`:`OK · captured (${row.latency_ms??'-'}ms)`);
+      return {t:tt, s:row.status, m, id:row.id, hasSnap:!!row.has_snapshot};
+    });
+  }catch(e){ return []; }
+}
+function snapHistUrl(checkId){
+  return CONFIG.API_BASE+'/api/cctv/snapshot_history/'+checkId+'?token='+encodeURIComponent(TOKEN);
+}
+
 function feedCell(cam,b,big){
   const ch=cam.channel||1;
   const url=snapUrlCam(cam);
@@ -397,7 +423,6 @@ function render(){
   document.getElementById('grid').innerHTML=list.map(card).join('')
     ||`<div style="grid-column:1/-1;text-align:center;color:var(--fg4);padding:50px">— ไม่พบสาขา —</div>`;
 
-  // stats — ประกาศ warn ก่อนใช้งานเสมอ (แก้บั๊ก ReferenceError เดิม)
   const on=DATA.branches.filter(b=>b.status==='online').length;
   const warn=DATA.branches.filter(b=>b.status==='warning').length;
   const off=DATA.branches.filter(b=>b.status==='offline').length;
@@ -423,10 +448,13 @@ function renderTabs(){
     `<button class="tab ${filter===k?'active':''}" onclick="filter='${k}';renderTabs();render()">${l}</button>`).join('');
 }
 
-function openSheet(code){
+/* ★ openSheet เป็น async แล้ว ดึงประวัติจริงจากกล้องช่องแรกของสาขา */
+async function openSheet(code){
   const b=DATA.branches.find(x=>x.code===code);
-  const log=genLog(b);
-  const cams=camList(b);
+  const cams0=camList(b);
+  const logDeviceId = cams0[0] ? cams0[0].device_id : (b.nvr ? b.nvr.device_id : null);
+  const log = CONFIG.USE_MOCK ? genLog(b) : await fetchLog(logDeviceId);
+  const cams=cams0;
   const onCnt=cams.filter(c=>c.status==='online').length;
   document.getElementById('sheet').innerHTML=`
     <div class="shead"><div class="t"><span class="dot ${b.status}"></span>${b.name}</div>
@@ -447,8 +475,10 @@ function openSheet(code){
         return `<i class="${cls}" style="height:${Math.max(v,3)}%" title="${v}%"></i>`;}).join('')}</div>
       <div class="axis"><span>-24h</span><span>-12h</span><span>${t('lastcheck')}</span></div>
       <div class="sect">${t('recent')}</div>
-      <div class="log">${log.map(l=>
-        `<div class="logrow"><span class="lt">${l.t}</span><span class="dot ${l.s}"></span><span class="lm">${l.m}</span></div>`).join('')}</div>
+      <div class="log">${log.length?log.map(l=>
+        `<div class="logrow"><span class="lt">${l.t}</span><span class="dot ${l.s}"></span><span class="lm">${l.m}</span>
+         ${l.hasSnap&&!CONFIG.USE_MOCK?`<a href="${snapHistUrl(l.id)}" target="_blank" rel="noopener" class="viewlink">${t('view')}</a>`:''}
+         </div>`).join(''):`<div style="color:var(--fg4);font-size:13px;padding:10px 2px">— ไม่มีประวัติ —</div>`}</div>
     </div>`;
   sheetBranch=b; camIdx=0; renderCam();
   document.getElementById('overlay').classList.add('show');
