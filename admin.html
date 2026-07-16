@@ -41,7 +41,7 @@ button{font-family:var(--sans);cursor:pointer;border:none;background:none;color:
 .btn:hover{opacity:.9} .btn.sm{padding:6px 12px;font-size:12px}
 .btn.danger{background:var(--offline);color:#fff}
 .btn.ghost{background:var(--bg2);color:var(--fg);border:1px solid var(--border)}
-.wrap{max-width:1240px;margin:0 auto;padding:18px}
+.wrap{max-width:1280px;margin:0 auto;padding:18px}
 .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .select,.finput{border:1.5px solid var(--border);border-radius:var(--r2);background:var(--bg2);
   color:var(--fg);font-family:var(--sans);font-size:13px;padding:9px 12px;outline:none}
@@ -55,6 +55,8 @@ tr:hover td{background:var(--bg3)}
 .tag.nvr{background:color-mix(in srgb,var(--blue) 15%,transparent);color:var(--blue)}
 .tag.camera{background:color-mix(in srgb,var(--online) 15%,transparent);color:var(--online)}
 .tag.off{background:color-mix(in srgb,var(--offline) 12%,transparent);color:var(--offline)}
+.tag.brand{background:var(--bg4);color:var(--fg2)}
+.tag.unknown{background:var(--bg4);color:var(--fg4);font-style:italic}
 .rowbtns{display:flex;gap:6px}
 .overlay{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);
   display:none;align-items:center;justify-content:center;padding:20px}
@@ -66,6 +68,7 @@ tr:hover td{background:var(--bg3)}
 .mhead h3{font-size:16px;font-weight:600}
 .mbody{padding:18px;display:flex;flex-direction:column;gap:12px}
 .field label{display:block;font-size:12px;font-weight:500;color:var(--fg2);margin-bottom:5px}
+.field .hint{font-size:11px;color:var(--fg4);margin-top:4px}
 .field input,.field select{width:100%;padding:10px 12px;border:1.5px solid var(--border);
   border-radius:var(--r2);background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;outline:none}
 .field input:focus,.field select:focus{border-color:var(--fg3)}
@@ -108,7 +111,7 @@ tr:hover td{background:var(--bg3)}
     <table>
       <thead><tr>
         <th>ประเภท</th><th>Code</th><th>ชื่อสาขา</th><th>IP</th><th>Ch</th>
-        <th>สังกัด NVR</th><th>สถานะ</th><th style="text-align:right">จัดการ</th>
+        <th>ยี่ห้อ</th><th>สังกัด NVR</th><th>สถานะ</th><th style="text-align:right">จัดการ</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -129,6 +132,14 @@ tr:hover td{background:var(--bg3)}
       <div class="field"><label>IP</label><input id="f_ip" placeholder="172.23.65.112"></div>
       <div class="field"><label>Channel</label><input id="f_channel" type="number" min="1" value="1"></div>
       <div class="field"><label>Model</label><input id="f_model" placeholder="DS-7104NI-Q1/4P/M"></div>
+      <div class="field" id="f_brand_wrap"><label>ยี่ห้อ RTSP (เฉพาะ NVR)</label>
+        <select id="f_brand">
+          <option value="">— ไม่ระบุ (auto-detect ตอนตรวจ) —</option>
+          <option value="hikvision">Hikvision</option>
+          <option value="netsurveillance">NETSurveillance</option>
+        </select>
+        <div class="hint">ไม่ระบุ = checker จะลองทุกยี่ห้อเองแล้วจำผลไว้อัตโนมัติ</div>
+      </div>
       <div class="field" id="f_parent_wrap"><label>สังกัด NVR (เฉพาะ Camera)</label>
         <select id="f_parent_id"><option value="">— ไม่ระบุ —</option></select>
       </div>
@@ -175,10 +186,17 @@ async function load(){
   }catch(e){toast('โหลดข้อมูลไม่สำเร็จ: '+e.message,true);}
 }
 
+function brandTag(d){
+  if(d.device_type!=='nvr') return '<span style="color:var(--fg4)">—</span>';
+  if(!d.brand) return '<span class="tag unknown">ยังไม่ทราบ</span>';
+  const label=d.brand==='hikvision'?'Hikvision':d.brand==='netsurveillance'?'NETSurveillance':d.brand;
+  return `<span class="tag brand">${label}</span>`;
+}
+
 function render(){
   document.getElementById('count').textContent=`${ALL.length} รายการ`;
   const tb=document.getElementById('tbody');
-  if(!ALL.length){tb.innerHTML=`<tr><td colspan="8" class="empty">— ไม่พบข้อมูล —</td></tr>`;return;}
+  if(!ALL.length){tb.innerHTML=`<tr><td colspan="9" class="empty">— ไม่พบข้อมูล —</td></tr>`;return;}
   tb.innerHTML=ALL.map(d=>`
     <tr>
       <td><span class="tag ${d.device_type}">${d.device_type==='nvr'?'NVR':'CAM'}</span></td>
@@ -186,6 +204,7 @@ function render(){
       <td>${d.branch_name}</td>
       <td>${d.ip}</td>
       <td>${d.channel}</td>
+      <td>${brandTag(d)}</td>
       <td>${d.parent_name||'—'}</td>
       <td>${d.active?'<span class="tag camera">Active</span>':'<span class="tag off">Inactive</span>'}</td>
       <td><div class="rowbtns" style="justify-content:flex-end">
@@ -210,34 +229,41 @@ function openModal(device){
   document.getElementById('f_ip').value=device?device.ip:'';
   document.getElementById('f_channel').value=device?device.channel:1;
   document.getElementById('f_model').value=device?(device.model||''):'';
+  document.getElementById('f_brand').value=device?(device.brand||''):'';
   document.getElementById('f_parent_id').value=device?(device.parent_id||''):'';
   document.getElementById('f_username').value=device?(device.username||''):'';
   document.getElementById('f_password_enc').value='';
   document.getElementById('f_active').checked=device?!!device.active:true;
-  toggleParentField();
+  toggleTypeFields();
   document.getElementById('overlay').classList.add('show');
 }
 function closeModal(){document.getElementById('overlay').classList.remove('show');}
-document.getElementById('f_device_type').addEventListener('change',toggleParentField);
-function toggleParentField(){
-  document.getElementById('f_parent_wrap').style.display=
-    document.getElementById('f_device_type').value==='camera'?'block':'none';
+document.getElementById('f_device_type').addEventListener('change',toggleTypeFields);
+function toggleTypeFields(){
+  const isCamera=document.getElementById('f_device_type').value==='camera';
+  document.getElementById('f_parent_wrap').style.display=isCamera?'block':'none';
+  document.getElementById('f_brand_wrap').style.display=isCamera?'none':'block';
 }
 
 function editDevice(id){ openModal(ALL.find(d=>d.id===id)); }
 
 async function saveDevice(){
   const id=document.getElementById('f_id').value;
+  const deviceType=document.getElementById('f_device_type').value;
   const body={
     code:document.getElementById('f_code').value.trim(),
     branch_name:document.getElementById('f_branch_name').value.trim(),
     ip:document.getElementById('f_ip').value.trim(),
-    device_type:document.getElementById('f_device_type').value,
+    device_type:deviceType,
     model:document.getElementById('f_model').value.trim()||null,
     parent_id:document.getElementById('f_parent_id').value||null,
     channel:parseInt(document.getElementById('f_channel').value)||1,
     active:document.getElementById('f_active').checked?1:0,
   };
+  if(deviceType==='nvr'){
+    const br=document.getElementById('f_brand').value;
+    if(br) body.brand=br;   // ว่าง = ไม่ส่ง -> ปล่อยให้ auto-detect
+  }
   const u=document.getElementById('f_username').value.trim();
   const p=document.getElementById('f_password_enc').value.trim();
   if(u)body.username=u; if(p)body.password_enc=p;
