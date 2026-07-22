@@ -83,6 +83,9 @@ tr:hover td{background:var(--bg3)}
   table{display:block;overflow-x:auto}
   th{position:static}
 }
+.ping-ok{background:color-mix(in srgb,var(--online) 14%,transparent);color:var(--online)}
+.ping-bad{background:color-mix(in srgb,var(--offline) 12%,transparent);color:var(--offline)}
+.ping-load{background:var(--bg3);color:var(--fg3)}  
 </style>
 </head>
 <body>
@@ -129,7 +132,13 @@ tr:hover td{background:var(--bg3)}
       </div>
       <div class="field"><label>Code (รหัสสาขา)</label><input id="f_code" placeholder="เช่น 0004 หรือ K0011"></div>
       <div class="field"><label>ชื่อสาขา</label><input id="f_branch_name" placeholder="เช่น DSB - MBK 2nd Floor"></div>
-      <div class="field"><label>IP</label><input id="f_ip" placeholder="172.23.65.112"></div>
+      <div class="field"><label>IP</label>
+  <div style="display:flex;gap:8px">
+    <input id="f_ip" placeholder="172.23.65.112" style="flex:1" oninput="clearPingResult()">
+    <button type="button" class="btn ghost sm" style="flex:none;white-space:nowrap" onclick="testPing()" id="pingbtn">🔍 ทดสอบ Ping</button>
+  </div>
+  <div id="ping_result" style="display:none;margin-top:8px;padding:9px 12px;border-radius:8px;font-size:12px;font-weight:500"></div>
+</div>
       <div class="field"><label>Channel</label><input id="f_channel" type="number" min="1" value="1"></div>
       <div class="field"><label>Model</label><input id="f_model" placeholder="DS-7104NI-Q1/4P/M"></div>
       <div class="field" id="f_brand_wrap"><label>ยี่ห้อ RTSP (เฉพาะ NVR)</label>
@@ -221,6 +230,7 @@ function fillParentSelect(){
 }
 
 function openModal(device){
+  clearPingResult();
   document.getElementById('mtitle').textContent=device?'แก้ไขอุปกรณ์':'เพิ่มอุปกรณ์';
   document.getElementById('f_id').value=device?device.id:'';
   document.getElementById('f_device_type').value=device?device.device_type:'nvr';
@@ -244,7 +254,37 @@ function toggleTypeFields(){
   document.getElementById('f_parent_wrap').style.display=isCamera?'block':'none';
   document.getElementById('f_brand_wrap').style.display=isCamera?'none':'block';
 }
+function clearPingResult(){
+  const el=document.getElementById('ping_result');
+  el.style.display='none'; el.className='';
+}
 
+async function testPing(){
+  const ip=document.getElementById('f_ip').value.trim();
+  const el=document.getElementById('ping_result');
+  const btn=document.getElementById('pingbtn');
+  if(!ip){ toast('กรอก IP ก่อน', true); return; }
+
+  el.style.display='block'; el.className='ping-load';
+  el.textContent='⏳ กำลังทดสอบ...';
+  btn.disabled=true;
+
+  try{
+    const r=await api('/api/cctv/ping_test?ip='+encodeURIComponent(ip));
+    if(r.reachable){
+      el.className='ping-ok';
+      const okPorts=Object.entries(r.ports).filter(([p,v])=>v!=null).map(([p,v])=>`${p}(${v}ms)`).join(', ');
+      el.textContent=`✓ ${r.message}${r.ping?' · ping ตอบ':''}${okPorts?' · port: '+okPorts:''}`;
+    }else{
+      el.className='ping-bad';
+      el.textContent='✕ '+r.message;
+    }
+  }catch(e){
+    el.className='ping-bad';
+    el.textContent='✕ ทดสอบไม่สำเร็จ: '+e.message;
+  }
+  btn.disabled=false;
+}
 function editDevice(id){ openModal(ALL.find(d=>d.id===id)); }
 
 async function saveDevice(){
